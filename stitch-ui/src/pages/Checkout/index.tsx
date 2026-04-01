@@ -19,9 +19,17 @@ const initialForm: CheckoutFormValues = {
 
 export default function Checkout() {
   const navigate = useNavigate();
-  const { cartDetailed, cartSubtotal, placeOrder } = useStore();
+  const { cartDetailed, cartSubtotal, placeOrder, isUserAuthenticated, authLoading } = useStore();
   const [values, setValues] = useState<CheckoutFormValues>(initialForm);
   const [errors, setErrors] = useState<Partial<Record<keyof CheckoutFormValues, string>>>({});
+
+  if (authLoading) {
+    return null;
+  }
+
+  if (!isUserAuthenticated) {
+    return <Navigate to="/account" replace />;
+  }
 
   if (cartDetailed.length === 0) {
     return <Navigate to="/cart" replace />;

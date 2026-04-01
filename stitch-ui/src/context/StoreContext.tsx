@@ -34,6 +34,7 @@ type StoreContextValue = {
   cartDetailed: Array<{ product: Product; size: string; quantity: number; lineTotal: number }>;
   userId: string | null;
   isUserAuthenticated: boolean;
+  authLoading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   addToCart: (productId: string, size: string, quantity?: number) => void;
@@ -76,6 +77,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [variantIdByProductAndSize, setVariantIdByProductAndSize] = useState<
     Record<string, Record<string, string>>
   >({});
@@ -107,6 +109,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       try {
         const currentUser = await getCurrentUser();
         setUserId(currentUser?.id ?? null);
+        setAuthLoading(false);
 
         const authSubscription = supabase.auth.onAuthStateChange((_, session) => {
           if (session?.user?.id) {
@@ -118,6 +121,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         subscription = authSubscription.data.subscription;
       } catch {
         setUserId(null);
+        setAuthLoading(false);
       }
     };
 
@@ -376,6 +380,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         cartDetailed,
         userId,
         isUserAuthenticated,
+        authLoading,
         signInWithEmail: signIn,
         signOut,
         addToCart,
