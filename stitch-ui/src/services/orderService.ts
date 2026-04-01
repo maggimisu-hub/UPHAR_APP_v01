@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
-import type { CartItem, CheckoutFormValues, Order } from "../types";
+import type { CheckoutFormValues, Order } from "../types";
 
 type OrderRow = {
   id: string;
@@ -37,6 +37,31 @@ export async function createOrder(
   return { orderId: result.order_id, totalAmount: Number(result.total_amount) };
 }
 
+export async function createAddressForCheckout(
+  userId: string,
+  shipping: CheckoutFormValues,
+): Promise<string> {
+  const { data, error } = await supabase
+    .from("addresses")
+    .insert({
+      user_id: userId,
+      name: shipping.name,
+      phone: shipping.phone,
+      address_line: shipping.address,
+      city: shipping.city,
+      pincode: shipping.pincode,
+      is_default: false,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    throw new Error(`createAddressForCheckout failed: ${error.message}`);
+  }
+
+  return data.id;
+}
+
 export async function getCustomerOrders(userId: string): Promise<Order[]> {
   const { data, error } = await supabase
     .from("orders")
@@ -71,5 +96,6 @@ export async function getCustomerOrders(userId: string): Promise<Order[]> {
 
 export const orderService = {
   createOrder,
+  createAddressForCheckout,
   getCustomerOrders,
 };

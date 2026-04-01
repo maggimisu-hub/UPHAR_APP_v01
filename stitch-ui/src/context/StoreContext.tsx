@@ -76,6 +76,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [variantIdByProductAndSize, setVariantIdByProductAndSize] = useState<
+    Record<string, Record<string, string>>
+  >({});
 
   useEffect(() => {
     const state = loadState();
@@ -105,13 +108,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const currentUser = await getCurrentUser();
         setUserId(currentUser?.id ?? null);
 
-        subscription = supabase.auth.onAuthStateChange((_, session) => {
+        const authSubscription = supabase.auth.onAuthStateChange((_, session) => {
           if (session?.user?.id) {
             setUserId(session.user.id);
           } else {
             setUserId(null);
           }
-        }).subscription;
+        });
+        subscription = authSubscription.data.subscription;
       } catch {
         setUserId(null);
       }
@@ -128,6 +132,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const loadProducts = async () => {
       try {
         const data = await productService.getAllProducts();
+        const variantIndex: Record<string, Record<string, string>> = {};
+
         const mappedProducts: Product[] = data.map((p) => ({
           id: p.id,
           name: p.name,
@@ -140,10 +146,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           featured: p.isFeatured,
           newArrival: p.isNew,
         }));
+
+        data.forEach((product) => {
+          variantIndex[product.id] = {};
+          product.variants.forEach((variant) => {
+            variantIndex[product.id][variant.name] = variant.id;
+          });
+        });
+
+        setVariantIdByProductAndSize(variantIndex);
         setProducts(mappedProducts);
       } catch (error) {
         console.error("Failed to load products from Supabase", error);
         setProducts([]);
+        setVariantIdByProductAndSize({});
       }
     };
 
@@ -257,18 +273,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    const activeAddress = addresses.find((address) => address.isDefault) || addresses[0];
-    if (!activeAddress) {
-      throw new Error("No address is set. Add an address before checkout.");
-    }
+    const addressId = await orderService.createAddressForCheckout(userId, shippingDetails);
 
-    const orderItems = cart.map((item) => ({
-      product_id: item.productId,
-      variant_id: item.size,
-      quantity: item.quantity,
-    }));
+    const orderItems: Array<{ product_id: string; variant_id: string; quantity: number }> = cart.map(
+      (item) => {
+        const variantId = variantIdByProductAndSize[item.productId]?.[item.size];
+        if (!variantId) {
+          throw new Error(
+            "One or more cart variants are invalid. Please remove and re-add items.",
+          );
+        }
 
-    const result = await orderService.createOrder(userId, activeAddress.id, "cod", orderItems);
+        return {
+          product_id: item.productId,
+          variant_id: variantId,
+          quantity: item.quantity,
+        };
+      },
+    );
+
+    const result = await orderService.createOrder(
+      userId,
+      addressId,
+      "cod",
+      orderItems,
+    );
 
     const shippingCost = cartSubtotal > 50000 ? 0 : 750;
 

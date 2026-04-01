@@ -18,6 +18,7 @@ declare
   v_resolved_count integer;
   v_blocked boolean;
 begin
+  -- ── Auth checks ──
   if v_auth_user_id is null then
     raise exception 'Authentication required';
   end if;
@@ -50,6 +51,7 @@ begin
     raise exception 'items cannot be empty';
   end if;
 
+  -- ── User check ──
   select u.is_blocked
   into v_blocked
   from public.users u
@@ -63,6 +65,7 @@ begin
     raise exception 'Blocked users cannot place orders';
   end if;
 
+  -- ── Address ownership ──
   perform 1
   from public.addresses a
   where a.id = v_address_id
@@ -72,100 +75,95 @@ begin
     raise exception 'Address does not belong to user';
   end if;
 
-  create temporary table _checkout_input (
-    product_id uuid not null,
-    variant_id uuid not null,
-    quantity integer not null
-  ) on commit drop;
-
-  insert into _checkout_input (product_id, variant_id, quantity)
-  select
-    x.product_id,
-    x.variant_id,
-    x.quantity
-  from jsonb_to_recordset(p_payload -> 'items') as x(
-    product_id uuid,
-    variant_id uuid,
-    quantity integer
-  );
-
+  -- ── Validate raw items from payload ──
   if exists (
     select 1
-    from _checkout_input
-    where product_id is null
-       or variant_id is null
-       or quantity is null
-       or quantity <= 0
+    from jsonb_to_recordset(p_payload -> 'items') as x(
+      product_id uuid,
+      variant_id uuid,
+      quantity integer
+    )
+    where x.product_id is null
+       or x.variant_id is null
+       or x.quantity is null
+       or x.quantity <= 0
   ) then
     raise exception 'Each item must contain valid product_id, variant_id, and quantity > 0';
   end if;
 
-  create temporary table _checkout_items (
-    product_id uuid not null,
-    variant_id uuid not null,
-    quantity integer not null
-  ) on commit drop;
+  -- ── Aggregate duplicate variant rows ──
+  select count(*)
+  into v_input_count
+  from (
+    select x.product_id, x.variant_id
+    from jsonb_to_recordset(p_payload -> 'items') as x(
+      product_id uuid,
+      variant_id uuid,
+      quantity integer
+    )
+    group by x.product_id, x.variant_id
+  ) agg;
 
-  insert into _checkout_items (product_id, variant_id, quantity)
-  select
-    product_id,
-    variant_id,
-    sum(quantity)::integer as quantity
-  from _checkout_input
-  group by product_id, variant_id;
-
-  select count(*) into v_input_count from _checkout_items;
-
-  create temporary table _resolved_items (
-    product_id uuid not null,
-    variant_id uuid not null,
-    quantity integer not null,
-    unit_price numeric(12,2) not null,
-    current_stock integer not null
-  ) on commit drop;
-
-  insert into _resolved_items (
-    product_id,
-    variant_id,
-    quantity,
-    unit_price,
-    current_stock
-  )
-  select
-    ci.product_id,
-    ci.variant_id,
-    ci.quantity,
-    pv.price,
-    inv.stock
-  from _checkout_items ci
-  join public.products p
-    on p.id = ci.product_id
-   and p.is_active = true
-  join public.product_variants pv
-    on pv.id = ci.variant_id
-   and pv.product_id = ci.product_id
-  join public.inventory inv
-    on inv.variant_id = ci.variant_id
-  for update of inv;
-
-  select count(*) into v_resolved_count from _resolved_items;
+  -- ── Resolve items against DB (price + stock) ──
+  select count(*)
+  into v_resolved_count
+  from (
+    select ci.product_id, ci.variant_id
+    from (
+      select x.product_id, x.variant_id, sum(x.quantity)::integer as quantity
+      from jsonb_to_recordset(p_payload -> 'items') as x(
+        product_id uuid,
+        variant_id uuid,
+        quantity integer
+      )
+      group by x.product_id, x.variant_id
+    ) ci
+    join public.products p
+      on p.id = ci.product_id and p.is_active = true
+    join public.product_variants pv
+      on pv.id = ci.variant_id and pv.product_id = ci.product_id
+    join public.inventory inv
+      on inv.variant_id = ci.variant_id
+  ) resolved;
 
   if v_resolved_count <> v_input_count then
     raise exception 'One or more items are invalid, inactive, or missing inventory';
   end if;
 
+  -- ── Stock check ──
   if exists (
     select 1
-    from _resolved_items
-    where current_stock < quantity
+    from (
+      select x.variant_id, sum(x.quantity)::integer as quantity
+      from jsonb_to_recordset(p_payload -> 'items') as x(
+        product_id uuid,
+        variant_id uuid,
+        quantity integer
+      )
+      group by x.variant_id
+    ) ci
+    join public.inventory inv on inv.variant_id = ci.variant_id
+    where inv.stock < ci.quantity
   ) then
     raise exception 'Insufficient stock for one or more variants';
   end if;
 
-  select coalesce(sum(quantity * unit_price), 0)::numeric(12,2)
+  -- ── Calculate total ──
+  select coalesce(sum(ci.quantity * pv.price), 0)::numeric(12,2)
   into v_total
-  from _resolved_items;
+  from (
+    select x.product_id, x.variant_id, sum(x.quantity)::integer as quantity
+    from jsonb_to_recordset(p_payload -> 'items') as x(
+      product_id uuid,
+      variant_id uuid,
+      quantity integer
+    )
+    group by x.product_id, x.variant_id
+  ) ci
+  join public.product_variants pv
+    on pv.id = ci.variant_id and pv.product_id = ci.product_id;
 
+  -- ── Create order ──
   insert into public.orders (
     user_id,
     total_amount,
@@ -176,13 +174,11 @@ begin
     v_user_id,
     v_total,
     'pending',
-    case
-      when v_payment_method = 'cod' then 'cod'
-      else 'pending'
-    end
+    case when v_payment_method = 'cod' then 'cod' else 'pending' end
   )
   returning id into v_order_id;
 
+  -- ── Create order items ──
   insert into public.order_items (
     order_id,
     product_id,
@@ -192,19 +188,39 @@ begin
   )
   select
     v_order_id,
-    product_id,
-    variant_id,
-    quantity,
-    unit_price
-  from _resolved_items;
+    ci.product_id,
+    ci.variant_id,
+    ci.quantity,
+    pv.price
+  from (
+    select x.product_id, x.variant_id, sum(x.quantity)::integer as quantity
+    from jsonb_to_recordset(p_payload -> 'items') as x(
+      product_id uuid,
+      variant_id uuid,
+      quantity integer
+    )
+    group by x.product_id, x.variant_id
+  ) ci
+  join public.product_variants pv
+    on pv.id = ci.variant_id and pv.product_id = ci.product_id;
 
+  -- ── Deduct inventory ──
   update public.inventory inv
   set
-    stock = inv.stock - ri.quantity,
+    stock = inv.stock - ci.quantity,
     updated_at = now()
-  from _resolved_items ri
-  where inv.variant_id = ri.variant_id;
+  from (
+    select x.variant_id, sum(x.quantity)::integer as quantity
+    from jsonb_to_recordset(p_payload -> 'items') as x(
+      product_id uuid,
+      variant_id uuid,
+      quantity integer
+    )
+    group by x.variant_id
+  ) ci
+  where inv.variant_id = ci.variant_id;
 
+  -- ── Create payment record ──
   insert into public.payments (
     order_id,
     amount,
@@ -222,8 +238,7 @@ begin
     now()
   );
 
-  return query
-  select v_order_id, v_total;
+  return query select v_order_id, v_total;
 end;
 $$;
 
