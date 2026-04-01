@@ -1,0 +1,8 @@
+{
+  "name": "Uphar - The Signature of Style",
+  "description": "A stylish e-commerce application for luxury Indian jewelry featuring an AI Stylist and Virtual Try-On.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}

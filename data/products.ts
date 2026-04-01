@@ -1,0 +1,150 @@
+﻿import type { Product, Testimonial } from "@/types/storefront";
+
+export const products: Product[] = [
+  {
+    id: "mn-tailored-wool-01",
+    name: "Tailored Wool Overshirt",
+    price: 11990,
+    images: [
+      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80",
+    ],
+    category: "men",
+    sizes: ["S", "M", "L", "XL"],
+    description: "A refined overshirt cut in a dense wool blend with clean patch pockets and a soft brushed finish.",
+    tag: "Featured",
+    featured: true,
+  },
+  {
+    id: "mn-selvedge-trouser-02",
+    name: "Relaxed Selvedge Trouser",
+    price: 8990,
+    images: [
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=80",
+    ],
+    category: "men",
+    sizes: ["30", "32", "34", "36"],
+    description: "Relaxed tailoring with a straight leg and lightweight structure designed for all-day movement.",
+    tag: "New",
+    newArrival: true,
+  },
+  {
+    id: "mn-merino-knit-03",
+    name: "Fine Merino Crewneck",
+    price: 7490,
+    images: [
+      "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=80",
+    ],
+    category: "men",
+    sizes: ["S", "M", "L", "XL"],
+    description: "An elevated wardrobe layer in breathable merino with a clean neckline and a balanced fit.",
+    tag: "Signature",
+    featured: true,
+  },
+  {
+    id: "mn-minimal-coat-04",
+    name: "Minimal Longline Coat",
+    price: 15990,
+    images: [
+      "https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1506629905607-45e6f7f4b2b4?auto=format&fit=crop&w=1200&q=80",
+    ],
+    category: "men",
+    sizes: ["M", "L", "XL"],
+    description: "A sharply edited outer layer with hidden closures, structured shoulders, and a fluid drape.",
+    tag: "Outerwear",
+    newArrival: true,
+  },
+  {
+    id: "wm-satin-midi-05",
+    name: "Satin Column Midi Dress",
+    price: 12490,
+    images: [
+      "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80",
+    ],
+    category: "women",
+    sizes: ["XS", "S", "M", "L"],
+    description: "A fluid satin silhouette with a clean neckline and understated finish for day-to-evening dressing.",
+    tag: "Featured",
+    featured: true,
+  },
+  {
+    id: "wm-soft-tailoring-06",
+    name: "Soft Tailoring Blazer",
+    price: 11490,
+    images: [
+      "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=1200&q=80",
+    ],
+    category: "women",
+    sizes: ["XS", "S", "M", "L", "XL"],
+    description: "An effortless blazer with gentle structure, elongated lapels, and an easy premium feel.",
+    tag: "New",
+    newArrival: true,
+  },
+  {
+    id: "wm-pleated-skirt-07",
+    name: "Sculpted Pleated Skirt",
+    price: 8690,
+    images: [
+      "https://images.unsplash.com/photo-1495385794356-15371f348c31?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80",
+    ],
+    category: "women",
+    sizes: ["XS", "S", "M", "L"],
+    description: "Precision pleating, a clean waistband, and a swing shape that moves with quiet confidence.",
+    tag: "Signature",
+    featured: true,
+  },
+  {
+    id: "wm-wool-wrap-08",
+    name: "Wool Wrap Coat",
+    price: 16990,
+    images: [
+      "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=80",
+    ],
+    category: "women",
+    sizes: ["S", "M", "L"],
+    description: "A warm wrap silhouette with clean lapels, deep pockets, and a softly cinched waist.",
+    tag: "Outerwear",
+    newArrival: true,
+  },
+];
+
+export const testimonials: Testimonial[] = [
+  {
+    id: "t1",
+    name: "Aanya Mehra",
+    city: "Mumbai",
+    quote: "The finish feels elevated, the fit is precise, and every piece looks effortless the moment it arrives.",
+  },
+  {
+    id: "t2",
+    name: "Karan Sethi",
+    city: "Delhi",
+    quote: "Minimal design done right. The quality feels considered without being loud or overdesigned.",
+  },
+  {
+    id: "t3",
+    name: "Riya Kapoor",
+    city: "Bengaluru",
+    quote: "I bought one coat and came back for three more essentials. The palette makes styling incredibly easy.",
+  },
+  {
+    id: "t4",
+    name: "Vikram Rao",
+    city: "Hyderabad",
+    quote: "Clean cuts, beautiful fabric weight, and a shopping experience that feels genuinely premium on mobile.",
+  },
+  {
+    id: "t5",
+    name: "Sara Thomas",
+    city: "Pune",
+    quote: "The checkout flow is smooth, the product pages are thoughtful, and the brand language feels cohesive.",
+  },
+];
+
