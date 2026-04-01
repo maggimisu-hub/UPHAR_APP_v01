@@ -32,7 +32,7 @@ export type Address = {
 };
 
 export type OrderStatus = "confirmed" | "processing" | "delivered";
-export type PaymentStatus = "unpaid" | "paid";
+export type PaymentStatus = "unpaid" | "paid" | "pending" | "cod" | "failed";
 
 export type CheckoutFormValues = {
   name: string;
@@ -49,7 +49,7 @@ export type Order = {
   subtotal: number;
   shippingCost: number;
   total: number;
-  orderStatus: "pending" | "confirmed";
+  orderStatus: "pending" | "confirmed" | "ready" | "delivered" | "cancelled";
   paymentStatus: PaymentStatus;
   createdAt: string;
 };

@@ -303,7 +303,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       orderItems,
     );
 
-    const shippingCost = cartSubtotal > 50000 ? 0 : 750;
+    const shippingCost = 0;
 
     const order: Order = {
       id: result.orderId,
@@ -313,7 +313,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       shippingCost,
       total: cartSubtotal + shippingCost,
       orderStatus: "pending",
-      paymentStatus: "unpaid",
+      paymentStatus: "cod",
       createdAt: new Date().toISOString(),
     };
 

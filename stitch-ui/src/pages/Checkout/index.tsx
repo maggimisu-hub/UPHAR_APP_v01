@@ -64,7 +64,7 @@ export default function Checkout() {
         return;
       }
 
-      navigate(`/payment?orderId=${order.id}`);
+      navigate(`/order/${order.id}`);
     } catch (error) {
       console.error("Order placement failed", error);
       navigate("/payment-failed");

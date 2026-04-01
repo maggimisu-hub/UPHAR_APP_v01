@@ -8,6 +8,11 @@ type OrderRow = {
   status: string;
   payment_status: string;
   created_at: string;
+  order_items: Array<{
+    product_id: string;
+    quantity: number;
+    variant: { name: string } | { name: string }[] | null;
+  }> | null;
 };
 
 export async function createOrder(
@@ -65,7 +70,23 @@ export async function createAddressForCheckout(
 export async function getCustomerOrders(userId: string): Promise<Order[]> {
   const { data, error } = await supabase
     .from("orders")
-    .select("id,user_id,total_amount,status,payment_status,created_at")
+    .select(
+      `
+        id,
+        user_id,
+        total_amount,
+        status,
+        payment_status,
+        created_at,
+        order_items (
+          product_id,
+          quantity,
+          variant:product_variants (
+            name
+          )
+        )
+      `,
+    )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
@@ -77,19 +98,25 @@ export async function getCustomerOrders(userId: string): Promise<Order[]> {
 
   return rows.map((row) => ({
     id: row.id,
-    items: [], // Backend product linking will be added later (cart-based order items)
+    items: (row.order_items ?? []).map((item) => ({
+      productId: item.product_id,
+      size: Array.isArray(item.variant)
+        ? (item.variant[0]?.name ?? "Standard")
+        : (item.variant?.name ?? "Standard"),
+      quantity: item.quantity,
+    })),
     shipping: {
-      name: "",
-      phone: "",
-      address: "",
-      city: "",
-      pincode: "",
+      name: "Store pickup",
+      phone: "-",
+      address: "Collect from Uphar store after status changes to Ready",
+      city: "In-store",
+      pincode: "-",
     },
     subtotal: Number(row.total_amount),
     shippingCost: 0,
     total: Number(row.total_amount),
-    orderStatus: row.status as "pending" | "confirmed",
-    paymentStatus: row.payment_status as "unpaid" | "paid",
+    orderStatus: row.status as Order["orderStatus"],
+    paymentStatus: row.payment_status as Order["paymentStatus"],
     createdAt: row.created_at,
   }));
 }

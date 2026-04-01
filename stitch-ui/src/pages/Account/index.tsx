@@ -7,6 +7,22 @@ import SectionTitle from "../../components/SectionTitle";
 import { useStore } from "../../context/StoreContext";
 import { formatDate, formatPrice } from "../../lib/format";
 
+function getTakeawayNextStep(orderStatus: string, paymentStatus: string): string {
+  if (orderStatus === "cancelled") {
+    return "Order cancelled";
+  }
+
+  if (orderStatus === "delivered" && paymentStatus === "paid") {
+    return "Takeaway completed";
+  }
+
+  if (orderStatus === "ready") {
+    return "Visit store and pay at pickup";
+  }
+
+  return "Store team is preparing your order";
+}
+
 export default function Account() {
   const {
     orders,
@@ -192,7 +208,7 @@ export default function Account() {
                   </div>
                 </div>
                 <div className="mt-6 flex items-center justify-between border-t border-primary/15 pt-6 text-sm">
-                  <span className="text-muted">Shipping to {order.shipping.city}</span>
+                  <span className="text-muted">{getTakeawayNextStep(order.orderStatus, order.paymentStatus)}</span>
                   <span className="font-medium text-primary">{formatPrice(order.total)}</span>
                 </div>
               </Link>
