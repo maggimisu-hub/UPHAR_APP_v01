@@ -14,10 +14,10 @@ export default function Payment() {
   return (
     <section className="container-shell py-16 sm:py-20">
       <div className="mx-auto max-w-4xl rounded-[36px] border border-primary/15 bg-ivory p-8 sm:p-12">
-        <p className="text-[11px] uppercase tracking-[0.32em] text-muted">Payment Gateway</p>
-        <h1 className="mt-4 text-[1.375rem] font-bold leading-[1.25] text-primary sm:text-[1.75rem]">Secure payment handoff</h1>
+        <p className="text-[11px] uppercase tracking-[0.32em] text-muted">Notice</p>
+        <h1 className="mt-4 text-[1.375rem] font-bold leading-[1.25] text-primary sm:text-[1.75rem]">Payment routing</h1>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-muted">
-          This screen represents the payment step for your Uphar jewellery order. The order remains pending until the return flow confirms payment.
+          Online payments are currently disabled. Please view your order details to track your takeaway progress.
         </p>
 
         <div className="mt-10 grid gap-6 rounded-[28px] bg-background-light p-6 sm:grid-cols-2">
@@ -26,13 +26,13 @@ export default function Payment() {
             <p className="mt-2 text-lg text-primary">{orderId ?? "Unavailable"}</p>
           </div>
           <div>
-            <p className="text-sm text-muted">Amount due</p>
+            <p className="text-sm text-muted">Total amount</p>
             <p className="mt-2 text-lg text-primary">{order ? formatPrice(order.total) : "Awaiting order"}</p>
           </div>
         </div>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Button href={orderId ? `/payment/return?orderId=${orderId}` : "/checkout"}>Complete payment</Button>
+          <Button href={orderId ? `/order/${orderId}` : "/account"}>View order details</Button>
           <Button href="/cart" variant="secondary">Back to cart</Button>
         </div>
       </div>

@@ -4,13 +4,14 @@ import {
   useEffect,
   useMemo,
   useState,
+  useCallback,
   type ReactNode,
 } from "react";
 
 import { supabase } from "../lib/supabaseClient";
 import { productService } from "../services/productService";
 import { orderService } from "../services/orderService";
-import { getCurrentUser, signInWithEmail, signOutCurrentUser } from "../services/authService";
+import { getCurrentUser, signInWithEmail, signUpWithEmail, signOutCurrentUser } from "../services/authService";
 import type { Address, CartItem, CheckoutFormValues, Order, Product } from "../types";
 
 const STORAGE_KEY = "stitch-ui-store";
@@ -36,6 +37,7 @@ type StoreContextValue = {
   isUserAuthenticated: boolean;
   authLoading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   addToCart: (productId: string, size: string, quantity?: number) => void;
   removeFromCart: (productId: string, size: string) => void;
@@ -44,6 +46,7 @@ type StoreContextValue = {
   addAddress: (address: Omit<Address, "id">) => void;
   placeOrder: (shipping: CheckoutFormValues) => Promise<Order | null>;
   confirmPayment: (orderId: string) => Order | null;
+  refreshOrders: () => Promise<void>;
   getProductById: (productId: string) => Product | undefined;
   getProductsByCategory: (category: Product["category"]) => Product[];
   getFeaturedProducts: () => Product[];
@@ -170,19 +173,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     void loadProducts();
   }, []);
 
+  const refreshOrders = useCallback(async () => {
+    if (!userId) return;
+    const data = await orderService.getCustomerOrders(userId);
+    setOrders(data);
+  }, [userId]);
+
   useEffect(() => {
     const loadOrders = async () => {
-      if (!userId) return;
       try {
-        const data = await orderService.getCustomerOrders(userId);
-        setOrders(data);
+        await refreshOrders();
       } catch (error) {
         console.error("Failed to load customer orders", error);
       }
     };
 
     void loadOrders();
-  }, [userId]);
+  }, [refreshOrders]);
 
   const cartDetailed = useMemo(
     () =>
@@ -210,6 +217,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     await signInWithEmail(email, password);
+    const user = await getCurrentUser();
+    setUserId(user?.id ?? null);
+  };
+
+  const signUp = async (email: string, password: string) => {
+    await signUpWithEmail(email, password);
     const user = await getCurrentUser();
     setUserId(user?.id ?? null);
   };
@@ -382,6 +395,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         isUserAuthenticated,
         authLoading,
         signInWithEmail: signIn,
+        signUpWithEmail: signUp,
         signOut,
         addToCart,
         removeFromCart,
@@ -390,6 +404,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         addAddress,
         placeOrder,
         confirmPayment,
+        refreshOrders,
         getProductById,
         getProductsByCategory,
         getFeaturedProducts,

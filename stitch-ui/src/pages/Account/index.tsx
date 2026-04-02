@@ -23,6 +23,8 @@ function getTakeawayNextStep(orderStatus: string, paymentStatus: string): string
   return "Store team is preparing your order";
 }
 
+type AuthMode = "signin" | "signup" | "forgot";
+
 export default function Account() {
   const {
     orders,
@@ -31,17 +33,43 @@ export default function Account() {
     userId,
     isUserAuthenticated,
     signInWithEmail,
+    signUpWithEmail,
     signOut,
+    refreshOrders,
   } = useStore();
 
+  const [authMode, setAuthMode] = useState<AuthMode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [refreshingOrders, setRefreshingOrders] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+
+  const handleRefreshOrders = async () => {
+    setRefreshingOrders(true);
+    setOrdersError(null);
+    try {
+      await refreshOrders();
+    } catch (e) {
+      setOrdersError("Failed to refresh orders. Please try again.");
+    } finally {
+      setRefreshingOrders(false);
+    }
+  };
+
+  const switchMode = (mode: AuthMode) => {
+    setAuthMode(mode);
+    setError(null);
+    setSuccess(null);
+  };
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setSuccess(null);
 
     if (!email.trim() || !password.trim()) {
       setError("Please enter both email and password.");
@@ -60,6 +88,34 @@ export default function Account() {
     }
   };
 
+  const handleSignUp = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    if (!email.trim() || !password.trim()) {
+      setError("Please enter both email and password.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await signUpWithEmail(email.trim(), password);
+      setSuccess("Account created successfully. You are now signed in.");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Sign-up failed. Please try again.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -68,62 +124,123 @@ export default function Account() {
     }
   };
 
-  /* ─── Not signed in → show login form ─── */
+  /* ─── Not signed in → show auth form ─── */
   if (!isUserAuthenticated) {
     return (
       <section className="container-shell py-16 sm:py-20">
         <SectionTitle
           eyebrow="Account"
-          title="Sign in to your Uphar account."
-          body="Access your jewellery orders, saved pieces, and delivery addresses."
+          title={authMode === "signup" ? "Create your Uphar account." : "Sign in to your Uphar account."}
+          body={authMode === "signup"
+            ? "Create an account to place orders and track your jewellery purchases."
+            : "Access your jewellery orders, saved pieces, and delivery addresses."}
         />
 
         <div className="mx-auto mt-10 max-w-md">
-          <form
-            onSubmit={handleLogin}
-            className="space-y-5 rounded-[32px] border border-primary/15 bg-ivory p-6 sm:p-8"
-          >
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.3em] text-muted">
-                Welcome back
-              </p>
-              <h2 className="mt-3 text-[1.375rem] font-bold leading-[1.25] text-primary">
-                Sign in
-              </h2>
-            </div>
-
-            <Input
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@email.com"
-              autoComplete="email"
-            />
-
-            <Input
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              autoComplete="current-password"
-            />
-
-            {error && (
-              <div className="rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 text-sm text-accent">
-                {error}
+          {/* ─── Forgot password placeholder ─── */}
+          {authMode === "forgot" ? (
+            <div className="space-y-5 rounded-[32px] border border-primary/15 bg-ivory p-6 sm:p-8">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.3em] text-muted">
+                  Password reset
+                </p>
+                <h2 className="mt-3 text-[1.375rem] font-bold leading-[1.25] text-primary">
+                  Forgot password
+                </h2>
               </div>
-            )}
+              <div className="rounded-[16px] border border-primary/10 bg-primary/5 p-4 text-sm leading-6 text-primary">
+                <p>Password reset flow will be enabled shortly.</p>
+                <p className="mt-1">Contact support for now.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => switchMode("signin")}
+                className="text-sm font-medium text-accent transition-colors duration-200 hover:text-primary"
+              >
+                ← Back to sign in
+              </button>
+            </div>
+          ) : (
+            /* ─── Sign in / Sign up form ─── */
+            <form
+              onSubmit={authMode === "signin" ? handleLogin : handleSignUp}
+              className="space-y-5 rounded-[32px] border border-primary/15 bg-ivory p-6 sm:p-8"
+            >
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.3em] text-muted">
+                  {authMode === "signin" ? "Welcome back" : "Get started"}
+                </p>
+                <h2 className="mt-3 text-[1.375rem] font-bold leading-[1.25] text-primary">
+                  {authMode === "signin" ? "Sign in" : "Create account"}
+                </h2>
+              </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
-            </Button>
+              <Input
+                label="Email"
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(null); setSuccess(null); }}
+                placeholder="you@email.com"
+                autoComplete="email"
+              />
 
-            <p className="text-center text-xs text-muted">
-              Use your Uphar account credentials to continue.
-            </p>
-          </form>
+              <Input
+                label="Password"
+                type="password"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setError(null); setSuccess(null); }}
+                placeholder={authMode === "signup" ? "At least 6 characters" : "Enter your password"}
+                autoComplete={authMode === "signin" ? "current-password" : "new-password"}
+              />
+
+              {error && (
+                <div className="rounded-[16px] border border-primary/10 bg-primary/5 px-4 py-3 text-sm text-primary">
+                  {error}
+                </div>
+              )}
+
+              {success && (
+                <div className="rounded-[16px] border border-accent/15 bg-accent/5 px-4 py-3 text-sm text-accent">
+                  {success}
+                </div>
+              )}
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading
+                  ? (authMode === "signin" ? "Signing in…" : "Creating account…")
+                  : (authMode === "signin" ? "Sign in" : "Create account")}
+              </Button>
+
+              <div className="flex items-center justify-between text-xs text-muted">
+                {authMode === "signin" ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => switchMode("forgot")}
+                      className="font-medium text-accent transition-colors duration-200 hover:text-primary"
+                    >
+                      Forgot password?
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => switchMode("signup")}
+                      className="font-medium text-accent transition-colors duration-200 hover:text-primary"
+                    >
+                      Create account
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => switchMode("signin")}
+                    className="font-medium text-accent transition-colors duration-200 hover:text-primary"
+                  >
+                    Already have an account? Sign in
+                  </button>
+                )}
+              </div>
+            </form>
+          )}
         </div>
       </section>
     );
@@ -135,7 +252,7 @@ export default function Account() {
       <SectionTitle
         eyebrow="Account"
         title="Your Uphar account."
-        body="Review jewellery orders, payment updates, and saved pieces in one calm, minimal dashboard."
+        body="Review jewellery orders, tracking updates, and saved pieces in one calm, minimal dashboard."
       />
 
       <div className="mt-10 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
@@ -143,14 +260,14 @@ export default function Account() {
           <p className="text-[11px] uppercase tracking-[0.3em] text-muted">Profile</p>
           <h2 className="mt-4 text-[1.375rem] font-bold leading-[1.25] text-primary">Client dashboard</h2>
           {userId && (
-            <p className="mt-2 text-xs text-muted truncate">
+            <p className="mt-2 text-xs truncate text-muted">
               Signed in as {userId.slice(0, 8)}…
             </p>
           )}
           <div className="mt-6 space-y-4 text-sm leading-7 text-muted">
             <p>Keep track of bridal orders, festive purchases, and delivery details for upcoming occasions.</p>
           </div>
-          <div className="mt-8 grid grid-cols-2 gap-4 text-center text-sm">
+          <div className="mt-8 grid gap-4 text-center text-sm grid-cols-1 md:grid-cols-2">
             <div className="rounded-[20px] bg-background-light p-4">
               <p className="text-2xl text-primary">{orders.length}</p>
               <p className="mt-1 text-muted">Orders</p>
@@ -160,7 +277,7 @@ export default function Account() {
               <p className="mt-1 text-muted">Saved pieces</p>
             </div>
           </div>
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+          <div className="mt-8 grid gap-3 grid-cols-1 md:grid-cols-2">
             <Link to="/wishlist" className="rounded-[20px] border border-primary/15 bg-background-light px-4 py-4 text-sm font-medium text-primary transition duration-300 hover:border-accent">
               Saved pieces
             </Link>
@@ -174,7 +291,7 @@ export default function Account() {
               Virtual preview
             </Link>
           </div>
-          <div className="mt-8 flex gap-3">
+          <div className="mt-8 flex flex-col md:flex-row gap-3">
             <Button href="/shop" className="flex-1">
               Shop collection
             </Button>
@@ -189,10 +306,23 @@ export default function Account() {
         </div>
 
         <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm uppercase tracking-[0.24em] text-muted">Recent orders</h3>
+            <Button
+              variant="secondary"
+              onClick={handleRefreshOrders}
+              disabled={refreshingOrders}
+              className="px-4 py-2 text-xs"
+            >
+              {refreshingOrders ? "Refreshing..." : "Refresh status"}
+            </Button>
+          </div>
+          {ordersError && <p className="text-sm text-accent">{ordersError}</p>}
+          
           {orders.length === 0 ? (
             <div className="rounded-[32px] border border-dashed border-primary/20 bg-ivory p-8 text-center">
               <h3 className="text-[1.375rem] font-bold leading-[1.25] text-primary">No orders yet.</h3>
-              <p className="mt-3 text-sm leading-7 text-muted">Place an Uphar order to see confirmation and payment updates here.</p>
+              <p className="mt-3 text-sm leading-7 text-muted">Place an Uphar order to see confirmation and tracking updates here.</p>
             </div>
           ) : (
             orders.map((order) => (

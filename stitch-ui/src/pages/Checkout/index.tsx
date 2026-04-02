@@ -22,6 +22,7 @@ export default function Checkout() {
   const { cartDetailed, cartSubtotal, placeOrder, isUserAuthenticated, authLoading } = useStore();
   const [values, setValues] = useState<CheckoutFormValues>(initialForm);
   const [errors, setErrors] = useState<Partial<Record<keyof CheckoutFormValues, string>>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   if (authLoading) {
     return null;
@@ -38,6 +39,7 @@ export default function Checkout() {
   const updateField = (field: keyof CheckoutFormValues, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
+    setSubmitError(null);
   };
 
   const validate = () => {
@@ -51,8 +53,25 @@ export default function Checkout() {
     return Object.keys(nextErrors).length === 0;
   };
 
+  const mapCheckoutError = (err: unknown): string => {
+    if (err instanceof Error) {
+      const msg = err.message.toLowerCase();
+      if (msg.includes("authentication required") || msg.includes("must be signed in") || msg.includes("session")) {
+        return "Your session has expired. Please sign in again.";
+      }
+      if (msg.includes("invalid") || msg.includes("missing inventory") || msg.includes("cart mismatch")) {
+        return "Some items in your cart are no longer available. Please update your cart.";
+      }
+      if (msg.includes("insufficient stock")) {
+        return "Insufficient stock for one or more items. Please check quantity.";
+      }
+    }
+    return "We encountered an error processing your order. Please try again.";
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setSubmitError(null);
     if (!validate()) {
       return;
     }
@@ -60,14 +79,14 @@ export default function Checkout() {
     try {
       const order = await placeOrder(values);
       if (!order) {
-        navigate("/payment-failed");
+        setSubmitError("Failed to initiate order. Please try again.");
         return;
       }
 
       navigate(`/order/${order.id}`);
     } catch (error) {
       console.error("Order placement failed", error);
-      navigate("/payment-failed");
+      setSubmitError(mapCheckoutError(error));
     }
   };
 
@@ -76,7 +95,7 @@ export default function Checkout() {
       <SectionTitle
         eyebrow="Checkout"
         title="Complete your Uphar order."
-        body="Enter delivery details for your jewellery shipment and continue to the secure payment step."
+        body="Enter delivery details for your jewellery shipment to place your order."
       />
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
@@ -85,10 +104,15 @@ export default function Checkout() {
             <p className="text-[11px] uppercase tracking-[0.3em] text-muted">Delivery details</p>
             <h2 className="mt-3 text-[1.375rem] font-bold leading-[1.25] text-primary">Jewellery checkout</h2>
           </div>
+          {submitError && (
+            <div className="rounded-[16px] border border-primary/10 bg-primary/5 p-4 text-sm text-primary">
+              <p>{submitError}</p>
+            </div>
+          )}
           <Input label="Name" value={values.name} onChange={(event) => updateField("name", event.target.value)} error={errors.name} placeholder="Full name" />
           <Input label="Phone" value={values.phone} onChange={(event) => updateField("phone", event.target.value)} error={errors.phone} placeholder="10 digit mobile number" inputMode="numeric" />
           <Textarea label="Address" value={values.address} onChange={(event) => updateField("address", event.target.value)} error={errors.address} placeholder="House number, street, area" />
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 grid-cols-1 md:grid-cols-2">
             <Input label="City" value={values.city} onChange={(event) => updateField("city", event.target.value)} error={errors.city} placeholder="City" />
             <Input label="Pincode" value={values.pincode} onChange={(event) => updateField("pincode", event.target.value)} error={errors.pincode} placeholder="6 digit pincode" inputMode="numeric" />
           </div>

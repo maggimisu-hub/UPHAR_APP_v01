@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 
 import Button from "../../components/Button";
@@ -36,9 +37,24 @@ function getTakeawayStep(orderStatus: string, paymentStatus: string): number {
 
 export default function OrderDetails() {
   const { id } = useParams();
-  const { orders, getProductById } = useStore();
+  const { orders, getProductById, refreshOrders } = useStore();
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const order = orders.find((entry) => entry.id === id);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setError(null);
+    try {
+      await refreshOrders();
+    } catch (e) {
+      setError("Failed to refresh status.");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   if (!order) {
     return (
@@ -55,9 +71,22 @@ export default function OrderDetails() {
 
   return (
     <section className="container-shell py-16 sm:py-20">
-      <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Order details</p>
-      <h1 className="mt-3 text-[1.375rem] font-bold leading-[1.25] text-primary">{order.id}</h1>
-      <p className="mt-2 text-sm text-muted">Placed on {formatDate(order.createdAt)}</p>
+      <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Order details</p>
+          <h1 className="mt-3 text-[1.375rem] font-bold leading-[1.25] text-primary">{order.id}</h1>
+          <p className="mt-2 text-sm text-muted">Placed on {formatDate(order.createdAt)}</p>
+        </div>
+        <Button
+          variant="secondary"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="px-4 py-2 text-xs"
+        >
+          {refreshing ? "Refreshing..." : "Refresh status"}
+        </Button>
+      </div>
+      {error && <p className="mt-3 text-sm text-accent">{error}</p>}
 
       <div className="mt-8 rounded-[28px] border border-primary/15 bg-ivory p-5">
         <p className="text-sm text-muted">Status</p>
@@ -91,6 +120,26 @@ export default function OrderDetails() {
             })}
           </div>
         )}
+      </div>
+      <div className="mt-6 rounded-[28px] border border-primary/15 bg-ivory p-5">
+        <h2 className="text-[11px] uppercase tracking-[0.24em] text-muted">Takeaway instructions</h2>
+        <div className="mt-4 space-y-3 text-sm">
+          <div>
+            <p className="text-muted">Pickup Location</p>
+            <p className="text-primary font-medium">Uphar Flagship Store, Delhi</p>
+          </div>
+          <div>
+            <p className="text-muted">Timing Window</p>
+            <p className="text-primary font-medium">11:00 AM - 7:00 PM (Mon-Sat)</p>
+          </div>
+          <div>
+            <p className="text-muted">Store Contact</p>
+            <p className="text-primary font-medium">+91 98765 43210</p>
+          </div>
+        </div>
+        <div className="mt-5 rounded-xl bg-accent/10 px-4 py-3">
+          <p className="text-xs text-accent">Note: Bring your Order ID {order.id} at pickup.</p>
+        </div>
       </div>
 
       <div className="mt-6 rounded-[28px] border border-primary/15 bg-ivory p-5">

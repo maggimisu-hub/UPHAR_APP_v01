@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 export type AuthUser = {
   id: string;
   email: string | null;
+  role: string | null;
 };
 
 export async function getCurrentSession() {
@@ -40,8 +41,15 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     return null;
   }
 
+  const { data: userData } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
   return {
     id: user.id,
     email: user.email,
+    role: userData?.role ?? null,
   };
 }

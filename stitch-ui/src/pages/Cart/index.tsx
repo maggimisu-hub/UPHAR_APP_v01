@@ -31,7 +31,7 @@ export default function Cart() {
       <div className="mt-10 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-5">
           {cartDetailed.map((line) => (
-            <div key={`${line.product.id}-${line.size}`} className="grid gap-4 rounded-[28px] border border-primary/15 bg-ivory p-4 sm:grid-cols-[160px_1fr] sm:p-6">
+            <div key={`${line.product.id}-${line.size}`} className="grid gap-4 rounded-[28px] border border-primary/15 bg-ivory p-4 md:grid-cols-[160px_1fr] md:p-6">
               <div className="overflow-hidden rounded-[24px] bg-background-light">
                 <img src={line.product.images[0]} alt={line.product.name} className="aspect-[4/5] w-full object-cover" referrerPolicy="no-referrer" />
               </div>

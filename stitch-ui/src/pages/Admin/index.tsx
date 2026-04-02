@@ -1,4 +1,7 @@
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet, NavLink, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useStore } from "../../context/StoreContext";
+import { getCurrentUser } from "../../services/authService";
 
 const links = [
   { to: "/admin/products", label: "Products" },
@@ -7,6 +10,38 @@ const links = [
 ];
 
 export default function AdminLayout() {
+  const { isUserAuthenticated, authLoading } = useStore();
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [roleLoading, setRoleLoading] = useState(true);
+
+  useEffect(() => {
+    if (authLoading) return;
+    
+    if (!isUserAuthenticated) {
+      setRoleLoading(false);
+      setIsAdmin(false);
+      return;
+    }
+
+    getCurrentUser()
+      .then((user) => {
+        setIsAdmin(user?.role === "admin");
+        setRoleLoading(false);
+      })
+      .catch(() => {
+        setIsAdmin(false);
+        setRoleLoading(false);
+      });
+  }, [isUserAuthenticated, authLoading]);
+
+  if (authLoading || roleLoading) {
+    return null;
+  }
+
+  if (!isUserAuthenticated || !isAdmin) {
+    return <Navigate to="/account" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-background-light px-5 py-6">
       <h1 className="text-[1.375rem] font-bold leading-[1.25] text-primary">Admin</h1>

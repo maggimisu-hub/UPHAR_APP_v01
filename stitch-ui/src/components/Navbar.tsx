@@ -39,7 +39,7 @@ export default function Navbar() {
         </nav>
 
         <div className="flex items-center gap-4">
-          <div className="relative hidden sm:block">
+          <div className="relative hidden md:block">
             <label className="flex items-center gap-2 rounded-sm border border-accent/30 bg-ivory px-4 py-3 text-sm text-charcoal">
               <Search className="h-4 w-4 text-primary" />
               <input
