@@ -6,22 +6,7 @@ import Input from "../../components/Input";
 import SectionTitle from "../../components/SectionTitle";
 import { useStore } from "../../context/StoreContext";
 import { formatDate, formatPrice } from "../../lib/format";
-
-function getTakeawayNextStep(orderStatus: string, paymentStatus: string): string {
-  if (orderStatus === "cancelled") {
-    return "Order cancelled";
-  }
-
-  if (orderStatus === "delivered" && paymentStatus === "paid") {
-    return "Takeaway completed";
-  }
-
-  if (orderStatus === "ready") {
-    return "Visit store and pay at pickup";
-  }
-
-  return "Store team is preparing your order";
-}
+import { getTakeawayNextAction, getTakeawayStatusLabel } from "../../lib/takeaway";
 
 type AuthMode = "signin" | "signup" | "forgot";
 
@@ -333,12 +318,13 @@ export default function Account() {
                     <h3 className="mt-3 text-[18px] font-semibold leading-[1.3] text-primary">Order placed {formatDate(order.createdAt)}</h3>
                   </div>
                   <div className="text-right text-sm text-muted">
-                    <p>Order: <span className="text-primary">{order.orderStatus}</span></p>
+                    <p>Order: <span className="text-primary">{getTakeawayStatusLabel(order)}</span></p>
                     <p className="mt-1">Payment: <span className="text-primary">{order.paymentStatus}</span></p>
                   </div>
                 </div>
+                <p className="mt-4 text-sm text-primary">{getTakeawayNextAction(order)}</p>
                 <div className="mt-6 flex items-center justify-between border-t border-primary/15 pt-6 text-sm">
-                  <span className="text-muted">{getTakeawayNextStep(order.orderStatus, order.paymentStatus)}</span>
+                  <span className="text-muted">Refresh after the store team updates your order.</span>
                   <span className="font-medium text-primary">{formatPrice(order.total)}</span>
                 </div>
               </Link>

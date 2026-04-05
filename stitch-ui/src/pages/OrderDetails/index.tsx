@@ -4,6 +4,12 @@ import { useParams } from "react-router-dom";
 import Button from "../../components/Button";
 import { useStore } from "../../context/StoreContext";
 import { formatDate, formatPrice } from "../../lib/format";
+import {
+  TAKEAWAY_STORE,
+  getTakeawayNextAction,
+  getTakeawayStatusLabel,
+  getTakeawayStatusMessage,
+} from "../../lib/takeaway";
 
 const TAKEAWAY_STEPS = [
   {
@@ -90,8 +96,9 @@ export default function OrderDetails() {
 
       <div className="mt-8 rounded-[28px] border border-primary/15 bg-ivory p-5">
         <p className="text-sm text-muted">Status</p>
-        <p className="mt-2 capitalize text-primary">{order.orderStatus}</p>
+        <p className="mt-2 text-primary">{getTakeawayStatusLabel(order)}</p>
         <p className="mt-1 text-sm text-muted">Payment: {order.paymentStatus}</p>
+        <p className="mt-4 text-sm text-primary">{getTakeawayStatusMessage(order)}</p>
       </div>
 
       <div className="mt-6 rounded-[28px] border border-primary/15 bg-ivory p-5">
@@ -126,19 +133,19 @@ export default function OrderDetails() {
         <div className="mt-4 space-y-3 text-sm">
           <div>
             <p className="text-muted">Pickup Location</p>
-            <p className="text-primary font-medium">Uphar Flagship Store, Delhi</p>
+            <p className="text-primary font-medium">{TAKEAWAY_STORE.name}, {TAKEAWAY_STORE.city}</p>
           </div>
           <div>
             <p className="text-muted">Timing Window</p>
-            <p className="text-primary font-medium">11:00 AM - 7:00 PM (Mon-Sat)</p>
+            <p className="text-primary font-medium">{TAKEAWAY_STORE.pickupWindow}</p>
           </div>
           <div>
             <p className="text-muted">Store Contact</p>
-            <p className="text-primary font-medium">+91 98765 43210</p>
+            <p className="text-primary font-medium">{TAKEAWAY_STORE.phone}</p>
           </div>
         </div>
         <div className="mt-5 rounded-xl bg-accent/10 px-4 py-3">
-          <p className="text-xs text-accent">Note: Bring your Order ID {order.id} at pickup.</p>
+          <p className="text-xs text-accent">{getTakeawayNextAction(order)}.</p>
         </div>
       </div>
 
@@ -168,10 +175,10 @@ export default function OrderDetails() {
 
       <div className="mt-6 rounded-[28px] border border-primary/15 bg-ivory p-5 text-sm text-muted">
         <p className="text-primary">Pickup details</p>
-        <p className="mt-2">{order.shipping.name}</p>
-        <p className="mt-1">{order.shipping.phone}</p>
-        <p className="mt-2">{order.shipping.address}</p>
-        <p>{order.shipping.city} {order.shipping.pincode}</p>
+        <p className="mt-2">{TAKEAWAY_STORE.name}</p>
+        <p className="mt-1">{TAKEAWAY_STORE.phone}</p>
+        <p className="mt-2">{TAKEAWAY_STORE.city}</p>
+        <p>{TAKEAWAY_STORE.pickupWindow}</p>
       </div>
 
       <div className="mt-6 rounded-[28px] border border-primary/15 bg-ivory p-5 text-sm">
