@@ -25,7 +25,11 @@ export default function Checkout() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   if (authLoading || productsLoading) {
-    return null;
+    return (
+      <section className="container-shell py-16 sm:py-20 text-center">
+        <p className="text-muted">Loading your selection...</p>
+      </section>
+    );
   }
 
   if (!isUserAuthenticated) {
