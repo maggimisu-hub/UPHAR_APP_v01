@@ -90,8 +90,16 @@ export default function Account() {
 
     try {
       setLoading(true);
-      await signUpWithEmail(email.trim(), password);
-      setSuccess("Account created successfully. You are now signed in.");
+      const result = await signUpWithEmail(email.trim(), password);
+      
+      if (result.session) {
+        setSuccess("Account created successfully. You are now signed in.");
+      } else {
+        // Success but no session (e.g. email confirmation required)
+        setSuccess("Account created. Please sign in to continue.");
+        setAuthMode("signin");
+        setPassword(""); // Clear sensitive field
+      }
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Sign-up failed. Please try again.";

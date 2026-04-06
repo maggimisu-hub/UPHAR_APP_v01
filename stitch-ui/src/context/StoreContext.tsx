@@ -37,7 +37,7 @@ type StoreContextValue = {
   isUserAuthenticated: boolean;
   authLoading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<{ session: any; user: any }>;
   signOut: () => Promise<void>;
   addToCart: (productId: string, size: string, quantity?: number) => void;
   removeFromCart: (productId: string, size: string) => void;
@@ -222,9 +222,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string) => {
-    await signUpWithEmail(email, password);
-    const user = await getCurrentUser();
-    setUserId(user?.id ?? null);
+    const data = await signUpWithEmail(email, password);
+    if (data.session) {
+      const user = await getCurrentUser();
+      setUserId(user?.id ?? null);
+    }
+    return data;
   };
 
   const signOut = async () => {
