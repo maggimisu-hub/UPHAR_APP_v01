@@ -156,6 +156,21 @@ for select
 to authenticated
 using (public.is_admin());
 
+drop policy if exists "inventory_public_select_active_products" on public.inventory;
+create policy "inventory_public_select_active_products"
+on public.inventory
+for select
+to public
+using (
+  exists (
+    select 1
+    from public.product_variants pv
+    join public.products p on p.id = pv.product_id
+    where pv.id = variant_id
+      and (p.is_active = true or public.is_admin())
+  )
+);
+
 drop policy if exists "inventory_admin_insert" on public.inventory;
 create policy "inventory_admin_insert"
 on public.inventory

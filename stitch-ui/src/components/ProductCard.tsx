@@ -8,6 +8,10 @@ import type { Product } from "../types";
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart, toggleWishlist, wishlist } = useStore();
   const liked = wishlist.includes(product.id);
+  const defaultSize = product.sizes[0];
+  const defaultStock = defaultSize ? (product.variantStock?.[defaultSize] ?? 0) : 0;
+  const isOutOfStock = !defaultSize || defaultStock === 0;
+  const isLowStock = !isOutOfStock && defaultStock <= 3;
 
   return (
     <article className="group flex flex-col">
@@ -32,6 +36,9 @@ export default function ProductCard({ product }: { product: Product }) {
           <p className="text-[11px] uppercase tracking-[0.22em] text-charcoal/70">
             {formatCollection(product.category)}
           </p>
+          <p className={`text-sm ${isOutOfStock ? "text-primary" : isLowStock ? "text-accent" : "text-muted"}`}>
+            {isOutOfStock ? "Out of stock" : isLowStock ? `Only ${defaultStock} left` : "Available for checkout"}
+          </p>
           <p className="pt-1 text-base font-bold text-accent">{formatPrice(product.price)}</p>
         </div>
         <div className="flex gap-2">
@@ -43,8 +50,13 @@ export default function ProductCard({ product }: { product: Product }) {
             <Heart className="h-4 w-4" fill={liked ? "currentColor" : "none"} />
           </button>
           <button
-            onClick={() => addToCart(product.id, product.sizes[0])}
-            className="rounded-sm border border-primary/10 bg-ivory p-2 text-primary transition hover:border-accent hover:text-accent"
+            onClick={() => {
+              if (defaultSize) {
+                addToCart(product.id, defaultSize);
+              }
+            }}
+            disabled={isOutOfStock}
+            className="rounded-sm border border-primary/10 bg-ivory p-2 text-primary transition hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Add to cart"
           >
             <ShoppingBag className="h-4 w-4" />
