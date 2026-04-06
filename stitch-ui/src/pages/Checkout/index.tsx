@@ -19,12 +19,12 @@ const initialForm: CheckoutFormValues = {
 
 export default function Checkout() {
   const navigate = useNavigate();
-  const { cartDetailed, cartSubtotal, placeOrder, isUserAuthenticated, authLoading } = useStore();
+  const { cartDetailed, cartSubtotal, placeOrder, isUserAuthenticated, authLoading, productsLoading } = useStore();
   const [values, setValues] = useState<CheckoutFormValues>(initialForm);
   const [errors, setErrors] = useState<Partial<Record<keyof CheckoutFormValues, string>>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  if (authLoading) {
+  if (authLoading || productsLoading) {
     return null;
   }
 

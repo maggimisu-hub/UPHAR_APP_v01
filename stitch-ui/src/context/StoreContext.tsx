@@ -36,6 +36,7 @@ type StoreContextValue = {
   userId: string | null;
   isUserAuthenticated: boolean;
   authLoading: boolean;
+  productsLoading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<{ session: any; user: any }>;
   signOut: () => Promise<void>;
@@ -81,6 +82,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(true);
   const [variantIdByProductAndSize, setVariantIdByProductAndSize] = useState<
     Record<string, Record<string, string>>
   >({});
@@ -167,6 +169,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         console.error("Failed to load products from Supabase", error);
         setProducts([]);
         setVariantIdByProductAndSize({});
+      } finally {
+        setProductsLoading(false);
       }
     };
 
@@ -397,6 +401,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         userId,
         isUserAuthenticated,
         authLoading,
+        productsLoading,
         signInWithEmail: signIn,
         signUpWithEmail: signUp,
         signOut,

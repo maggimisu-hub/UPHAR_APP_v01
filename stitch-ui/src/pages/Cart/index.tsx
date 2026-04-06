@@ -4,7 +4,17 @@ import { useStore } from "../../context/StoreContext";
 import { formatPrice } from "../../lib/format";
 
 export default function Cart() {
-  const { cartDetailed, cartSubtotal, removeFromCart, updateCartQuantity } = useStore();
+  const { cartDetailed, cartSubtotal, cart, productsLoading, removeFromCart, updateCartQuantity } = useStore();
+
+  if (productsLoading && cart.length > 0) {
+    return (
+      <section className="container-shell py-16 sm:py-20">
+        <div className="rounded-[32px] border border-dashed border-primary/20 bg-ivory p-8 text-center sm:p-12">
+          <p className="text-[1.375rem] font-bold leading-[1.25] text-primary">Loading your selection...</p>
+        </div>
+      </section>
+    );
+  }
 
   if (cartDetailed.length === 0) {
     return (
