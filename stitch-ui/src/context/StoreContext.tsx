@@ -32,7 +32,8 @@ type StoreContextValue = {
   cartCount: number;
   wishlistCount: number;
   cartSubtotal: number;
-  cartDetailed: Array<{ product: Product; size: string; quantity: number; lineTotal: number }>;
+  cartDetailed: Array<{ product: Product; size: string; quantity: number; lineTotal: number; availableStock: number }>;
+  lastAdjustmentMessage: string | null;
   userId: string | null;
   isUserAuthenticated: boolean;
   authLoading: boolean;
@@ -86,6 +87,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [variantIdByProductAndSize, setVariantIdByProductAndSize] = useState<
     Record<string, Record<string, string>>
   >({});
+  const [lastAdjustmentMessage, setLastAdjustmentMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const state = loadState();
@@ -148,10 +150,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           name: p.name,
           price: p.price,
           images: p.images,
+          media: p.media,
           category: "men" as const, // Default category, will be updated when backend has categories
           sizes: p.variants.map((v) => v.name),
           description: p.description || "",
           tag: p.isFeatured ? "Featured" : p.isNew ? "New Arrival" : "Signature",
+          variantStock: p.variants.reduce((acc, v) => ({ ...acc, [v.name]: v.stock }), {}),
           featured: p.isFeatured,
           newArrival: p.isNew,
         }));
@@ -209,6 +213,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             size: item.size,
             quantity: item.quantity,
             lineTotal: item.quantity * product.price,
+            availableStock: product.variantStock?.[item.size] ?? 0,
           },
         ];
       }),
@@ -241,17 +246,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const addToCart = (productId: string, size: string, quantity = 1) => {
     setCart((current) => {
+      const product = products.find((p) => p.id === productId);
+      const stock = product?.variantStock?.[size] ?? 0;
+
       const existing = current.find(
         (item) => item.productId === productId && item.size === size,
       );
+
       if (!existing) {
-        return [...current, { productId, size, quantity }];
+        if (stock <= 0) return current;
+        const initialQty = Math.min(quantity, stock);
+        return [...current, { productId, size, quantity: initialQty }];
       }
-      return current.map((item) =>
-        item.productId === productId && item.size === size
-          ? { ...item, quantity: Math.min(item.quantity + quantity, 10) }
-          : item,
-      );
+
+      return current.map((item) => {
+        if (item.productId === productId && item.size === size) {
+          const newQty = Math.min(item.quantity + quantity, stock);
+          return { ...item, quantity: newQty };
+        }
+        return item;
+      });
     });
   };
 
@@ -266,10 +280,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       removeFromCart(productId, size);
       return;
     }
+
+    const product = products.find((p) => p.id === productId);
+    const stock = product?.variantStock?.[size] ?? 0;
+
     setCart((current) =>
-      current.map((item) =>
-        item.productId === productId && item.size === size ? { ...item, quantity } : item,
-      ),
+      current.map((item) => {
+        if (item.productId === productId && item.size === size) {
+          if (quantity > stock) {
+            setLastAdjustmentMessage("Quantity adjusted to available stock.");
+            window.setTimeout(() => setLastAdjustmentMessage(null), 3000);
+            return { ...item, quantity: stock };
+          }
+          return { ...item, quantity };
+        }
+        return item;
+      }),
     );
   };
 
@@ -398,6 +424,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         wishlistCount: wishlist.length,
         cartSubtotal,
         cartDetailed,
+        lastAdjustmentMessage,
         userId,
         isUserAuthenticated,
         authLoading,

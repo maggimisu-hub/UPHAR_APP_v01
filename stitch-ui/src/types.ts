@@ -5,10 +5,16 @@ export type Product = {
   name: string;
   price: number;
   images: string[];
+  media?: Array<{
+    url: string;
+    isVideo: boolean;
+    displayOrder: number;
+  }>;
   category: ProductCategory;
   sizes: string[];
   description: string;
   tag: string;
+  variantStock?: Record<string, number>;
   featured?: boolean;
   newArrival?: boolean;
 };

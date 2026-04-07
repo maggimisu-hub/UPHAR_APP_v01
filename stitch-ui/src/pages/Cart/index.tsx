@@ -4,7 +4,7 @@ import { useStore } from "../../context/StoreContext";
 import { formatPrice } from "../../lib/format";
 
 export default function Cart() {
-  const { cartDetailed, cartSubtotal, cart, productsLoading, removeFromCart, updateCartQuantity } = useStore();
+  const { cartDetailed, cartSubtotal, cart, productsLoading, removeFromCart, updateCartQuantity, lastAdjustmentMessage } = useStore();
 
   if (productsLoading && cart.length > 0) {
     return (
@@ -38,6 +38,12 @@ export default function Cart() {
         body="Adjust quantities, remove pieces, and continue when your order feels complete."
       />
 
+      {lastAdjustmentMessage && (
+        <div className="mt-8 rounded-[20px] bg-accent/10 p-4 text-center text-sm font-medium text-accent">
+          {lastAdjustmentMessage}
+        </div>
+      )}
+
       <div className="mt-10 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-5">
           {cartDetailed.map((line) => (
@@ -55,6 +61,13 @@ export default function Cart() {
                     <p className="text-sm text-primary">{formatPrice(line.lineTotal)}</p>
                   </div>
                   <p className="mt-4 max-w-lg text-sm leading-7 text-muted">{line.product.description}</p>
+                  
+                  {line.quantity > line.availableStock && (
+                    <p className="mt-2 text-sm font-semibold text-primary">Insufficient stock. Please reduce quantity.</p>
+                  )}
+                  {line.availableStock <= 3 && line.availableStock > 0 && (
+                    <p className="mt-2 text-sm font-medium text-accent">Only {line.availableStock} left in stock.</p>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -63,7 +76,11 @@ export default function Cart() {
                       -
                     </button>
                     <span className="min-w-12 text-center text-sm text-primary">{line.quantity}</span>
-                    <button onClick={() => updateCartQuantity(line.product.id, line.size, line.quantity + 1)} className="h-10 w-10 rounded-sm text-lg text-primary transition hover:text-accent">
+                    <button 
+                      onClick={() => updateCartQuantity(line.product.id, line.size, line.quantity + 1)} 
+                      disabled={line.quantity >= line.availableStock}
+                      className="h-10 w-10 disabled:opacity-30 rounded-sm text-lg text-primary transition hover:text-accent"
+                    >
                       +
                     </button>
                   </div>

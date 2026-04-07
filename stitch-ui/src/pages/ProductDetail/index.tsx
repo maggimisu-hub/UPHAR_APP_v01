@@ -41,7 +41,7 @@ export default function ProductDetail() {
     <div className="py-10 sm:py-14 lg:py-16">
       <div className="container-shell">
         <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr]">
-          <ProductGallery images={product.images} alt={product.name} />
+          <ProductGallery media={product.media} images={product.images} alt={product.name} />
           <ProductPurchasePanel product={product} />
         </div>
       </div>

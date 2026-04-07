@@ -38,27 +38,47 @@ export default function ProductPurchasePanel({ product }: { product: Product }) 
         </div>
       </div>
 
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-        <Button
-          className="flex-1"
-          onClick={() => {
-            addToCart(product.id, selectedSize);
-            setAdded(true);
-            window.setTimeout(() => setAdded(false), 1800);
-          }}
-        >
-          Add to cart
-        </Button>
-        <Button
-          variant="secondary"
-          className="flex-1"
-          onClick={() => {
-            addToCart(product.id, selectedSize);
-            navigate("/checkout");
-          }}
-        >
-          Reserve and checkout
-        </Button>
+      <div className="mt-8 flex flex-col gap-3">
+        {selectedSize && (
+          <p className={`text-sm font-medium ${
+            (product.variantStock?.[selectedSize] ?? 0) === 0 
+              ? "text-primary" 
+              : (product.variantStock?.[selectedSize] ?? 0) <= 3 
+                ? "text-accent" 
+                : "text-muted"
+          }`}>
+            {(product.variantStock?.[selectedSize] ?? 0) === 0 
+              ? "Out of stock" 
+              : (product.variantStock?.[selectedSize] ?? 0) <= 3 
+                ? `Limited: only ${product.variantStock?.[selectedSize]} left`
+                : "In stock"}
+          </p>
+        )}
+        
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button
+            className="flex-1"
+            disabled={(product.variantStock?.[selectedSize] ?? 0) === 0}
+            onClick={() => {
+              addToCart(product.id, selectedSize);
+              setAdded(true);
+              window.setTimeout(() => setAdded(false), 1800);
+            }}
+          >
+            Add to cart
+          </Button>
+          <Button
+            variant="secondary"
+            className="flex-1"
+            disabled={(product.variantStock?.[selectedSize] ?? 0) === 0}
+            onClick={() => {
+              addToCart(product.id, selectedSize);
+              navigate("/checkout");
+            }}
+          >
+            Reserve and checkout
+          </Button>
+        </div>
       </div>
 
       <p className="mt-4 text-sm text-charcoal/70">{added ? "Added to cart." : "Gift-ready packaging available on request."}</p>

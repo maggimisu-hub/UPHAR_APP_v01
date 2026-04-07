@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { formatPrice } from "../../lib/format";
-import { adminProductService, type AdminProduct } from "../../services/adminProductService";
+import { adminProductService, type AdminProduct, type AdminProductMedia } from "../../services/adminProductService";
 
 export default function AdminProducts() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -18,6 +18,7 @@ export default function AdminProducts() {
     is_featured: false,
     is_new: false,
     variants: [] as { id?: string; name: string; price: number }[],
+    media: [] as { id?: string; image_url: string; is_video: boolean; display_order: number; file?: File }[],
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -49,6 +50,7 @@ export default function AdminProducts() {
         is_featured: product.is_featured,
         is_new: product.is_new,
         variants: [...product.variants],
+        media: product.media ? product.media.map(m => ({ ...m })) : [],
       });
     } else {
       setEditingProduct(null);
@@ -60,6 +62,7 @@ export default function AdminProducts() {
         is_featured: false,
         is_new: false,
         variants: [{ name: "Default", price: 0 }],
+        media: [],
       });
     }
     setIsFormOpen(true);
@@ -93,6 +96,71 @@ export default function AdminProducts() {
     });
   };
 
+  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    setFormData((prev) => {
+      const newMedia = [...prev.media];
+      // Running count of total non-video items already in the media list
+      let currentImageCount = newMedia.filter(m => !m.is_video).length;
+      let capReached = false;
+
+      for (const file of files) {
+        const isVid = file.type.startsWith('video/');
+
+        if (!isVid) {
+          if (currentImageCount >= 7) {
+            capReached = true;
+            continue; // Skip this file, try next (may be a video)
+          }
+          currentImageCount++;
+        }
+
+        newMedia.push({
+          image_url: URL.createObjectURL(file),
+          is_video: isVid,
+          display_order: newMedia.length,
+          file: file,
+        });
+      }
+
+      if (capReached) {
+        alert('Maximum 7 images allowed per product. Extra images were skipped.');
+      }
+
+      return { ...prev, media: newMedia };
+    });
+    // Reset file input
+    e.target.value = '';
+  };
+
+  const removeMedia = (index: number) => {
+    setFormData((prev) => {
+      const newMedia = prev.media.filter((_, i) => i !== index);
+      // Re-adjust display orders
+      newMedia.forEach((m, idx) => m.display_order = idx);
+      return { ...prev, media: newMedia };
+    });
+  };
+
+  const moveMedia = (index: number, direction: 'up' | 'down') => {
+    setFormData((prev) => {
+      if (direction === 'up' && index === 0) return prev;
+      if (direction === 'down' && index === prev.media.length - 1) return prev;
+
+      const newMedia = [...prev.media];
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      
+      // Swap
+      [newMedia[index], newMedia[targetIndex]] = [newMedia[targetIndex], newMedia[index]];
+      
+      // Update display bounds
+      newMedia.forEach((m, idx) => m.display_order = idx);
+      return { ...prev, media: newMedia };
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.variants.length === 0) {
@@ -110,6 +178,17 @@ export default function AdminProducts() {
       setSubmitting(true);
       setError(null);
       
+      // 1. Upload new media files
+      const finalMedia = [...formData.media];
+      for (let i = 0; i < finalMedia.length; i++) {
+        const m = finalMedia[i];
+        if (m.file) {
+          const publicUrl = await adminProductService.uploadProductMedia(m.file);
+          finalMedia[i] = { ...m, image_url: publicUrl };
+          delete finalMedia[i].file;
+        }
+      }
+
       const productPayload = {
         name: formData.name,
         description: formData.description,
@@ -123,12 +202,14 @@ export default function AdminProducts() {
         await adminProductService.updateAdminProduct(
           editingProduct.id,
           productPayload,
-          formData.variants
+          formData.variants,
+          finalMedia as Array<Omit<AdminProductMedia, "id"> & { id?: string }>
         );
       } else {
         await adminProductService.createAdminProduct(
           productPayload,
-          formData.variants
+          formData.variants,
+          finalMedia as Array<Omit<AdminProductMedia, "id"> & { id?: string }>
         );
       }
       
@@ -151,7 +232,7 @@ export default function AdminProducts() {
         is_featured: product.is_featured,
         is_new: product.is_new,
       };
-      await adminProductService.updateAdminProduct(product.id, productPayload, product.variants);
+      await adminProductService.updateAdminProduct(product.id, productPayload, product.variants, product.media || []);
       await loadProducts();
     } catch (err: any) {
       alert("Failed to toggle status: " + err.message);
@@ -375,6 +456,119 @@ export default function AdminProducts() {
                   ))}
                 </div>
               </div>
+            </div>
+
+            {/* Media Management Section */}
+            <div className="space-y-4 pt-6 border-t border-primary/10">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs text-muted">
+                  Media ({formData.media.filter(m => !m.is_video).length}/7 images, {formData.media.filter(m => m.is_video).length} video)
+                </label>
+                <label className="cursor-pointer text-xs text-primary hover:text-primary/70 transition-colors">
+                  + Upload Files
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,video/*"
+                    onChange={handleMediaUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {formData.media.length === 0 && (
+                <div className="flex flex-col items-center justify-center gap-2 rounded-[12px] border-2 border-dashed border-primary/15 py-8">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted/50">
+                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                    <circle cx="9" cy="9" r="2"/>
+                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                  </svg>
+                  <p className="text-xs text-muted">No media uploaded yet</p>
+                  <label className="cursor-pointer rounded-full bg-primary/10 px-4 py-1.5 text-xs text-primary hover:bg-primary/20 transition-colors">
+                    Choose Images or Video
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,video/*"
+                      onChange={handleMediaUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {formData.media.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {formData.media.map((m, index) => (
+                    <div key={m.id || `new-${index}`} className="relative group rounded-[12px] border border-primary/10 bg-white overflow-hidden">
+                      {/* Preview */}
+                      <div className="aspect-square bg-primary/5">
+                        {m.is_video ? (
+                          <div className="flex flex-col items-center justify-center h-full gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary/60">
+                              <polygon points="6 3 20 12 6 21 6 3"/>
+                            </svg>
+                            <span className="text-[10px] text-muted">Video</span>
+                          </div>
+                        ) : (
+                          <img
+                            src={m.image_url}
+                            alt={`Media ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+                      </div>
+
+                      {/* Overlay controls */}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveMedia(index, 'up')}
+                          disabled={index === 0}
+                          className="p-1.5 rounded-full bg-white/90 text-primary hover:bg-white disabled:opacity-30 transition-colors"
+                          title="Move left"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeMedia(index)}
+                          className="p-1.5 rounded-full bg-white/90 text-accent hover:bg-white transition-colors"
+                          title="Remove"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveMedia(index, 'down')}
+                          disabled={index === formData.media.length - 1}
+                          className="p-1.5 rounded-full bg-white/90 text-primary hover:bg-white disabled:opacity-30 transition-colors"
+                          title="Move right"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                        </button>
+                      </div>
+
+                      {/* Order badge */}
+                      <div className="absolute top-1.5 left-1.5 rounded-full bg-primary/80 px-1.5 py-0.5 text-[9px] text-white font-medium">
+                        {index + 1}
+                      </div>
+
+                      {/* Type badge */}
+                      {m.is_video && (
+                        <div className="absolute top-1.5 right-1.5 rounded-full bg-accent/80 px-1.5 py-0.5 text-[9px] text-white font-medium">
+                          VID
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-[10px] text-muted/60">
+                Drag order affects storefront display. Max 7 images + videos supported.
+              </p>
             </div>
 
             <div className="flex justify-end gap-4 pt-6 border-t border-primary/10">
