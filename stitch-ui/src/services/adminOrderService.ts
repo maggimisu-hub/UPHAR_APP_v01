@@ -22,7 +22,7 @@ type AdminOrderRow = {
   status: AdminOrderActionResult["status"];
   payment_status: AdminOrderActionResult["payment_status"];
   created_at: string;
-  user: AdminOrderUserRow[] | null;
+  user: AdminOrderUserRow | AdminOrderUserRow[] | null;
 };
 
 export type AdminOrderRecord = {
@@ -69,7 +69,7 @@ export const adminOrderService = {
     }
 
     return ((data as AdminOrderRow[] | null) ?? []).map((order) => {
-      const customer = order.user?.[0] ?? null;
+      const customer = Array.isArray(order.user) ? order.user[0] : order.user;
 
       return {
         id: order.id,
