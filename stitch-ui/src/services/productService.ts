@@ -12,6 +12,7 @@ type ProductVariantRow = {
   id: string;
   name: string;
   price: number;
+  inventory: Array<{ stock: number }> | null;
 };
 
 type ProductRow = {
@@ -37,49 +38,58 @@ export type StorefrontProduct = {
     id: string;
     name: string;
     price: number;
+    stock: number;
   }>;
 };
 
 export async function getAllProducts(): Promise<StorefrontProduct[]> {
   const { data, error } = await supabase
     .from("products")
-    .select(
-      `
+    .select(`
+      id,
+      name,
+      description,
+      price,
+      is_featured,
+      is_new,
+      product_images (
+        image_url
+      ),
+      product_variants (
         id,
         name,
-        description,
         price,
-        is_featured,
-        is_new,
-        product_images (
-          image_url
-        ),
-        product_variants (
-          id,
-          name,
-          price
+        inventory (
+          stock
         )
-      `,
-    )
+      )
+    `)
+    .eq("is_active", true)
     .order("created_at", { ascending: false });
 
   if (error) {
     throw new Error(`Failed to fetch products: ${error.message}`);
   }
 
-  return (data ?? []).map((product) => ({
+  return (data ?? []).map((product: any) => ({
     id: product.id,
     name: product.name,
     description: product.description,
     price: product.price,
     isFeatured: product.is_featured,
     isNew: product.is_new,
-    images: (product.product_images ?? []).map((image) => image.image_url),
-    variants: (product.product_variants ?? []).map((variant) => ({
-      id: variant.id,
-      name: variant.name,
-      price: variant.price,
-    })),
+    images: (product.product_images ?? []).map((image: any) => image.image_url),
+    variants: (product.product_variants ?? []).map((variant: any) => {
+      const stockVal = Array.isArray(variant.inventory) 
+        ? variant.inventory[0]?.stock 
+        : variant.inventory?.stock;
+      return {
+        id: variant.id,
+        name: variant.name,
+        price: variant.price,
+        stock: stockVal ?? 0,
+      };
+    }),
   }));
 }
 
