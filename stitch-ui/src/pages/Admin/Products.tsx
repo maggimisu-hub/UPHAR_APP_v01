@@ -165,7 +165,7 @@ export default function AdminProducts() {
   return (
     <div className="space-y-6">
       {error && !isFormOpen && (
-        <div className="rounded-[12px] bg-red-50 p-4 text-sm text-red-600">
+        <div className="rounded-[12px] bg-accent/10 p-4 text-sm text-accent">
           {error}
         </div>
       )}
@@ -189,7 +189,7 @@ export default function AdminProducts() {
                   <div className="flex items-center gap-2">
                     <p className="text-primary font-medium">{product.name}</p>
                     {!product.is_active && (
-                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] uppercase tracking-wider text-red-700">
+                      <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-accent">
                         Inactive
                       </span>
                     )}
@@ -249,7 +249,7 @@ export default function AdminProducts() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-              <div className="rounded-[12px] bg-red-50 p-4 text-sm text-red-600">
+              <div className="rounded-[12px] bg-accent/10 p-4 text-sm text-accent">
                 {error}
               </div>
             )}
@@ -342,7 +342,7 @@ export default function AdminProducts() {
                           <input
                             type="text"
                             required
-                            placeholder="Variant Name (e.g. Small, Extra Cheese)"
+                            placeholder="Variant Name (e.g. 18k Rose Gold, 10g)"
                             value={variant.name}
                             onChange={(e) => updateVariant(index, "name", e.target.value)}
                             className="w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-1 text-sm text-primary focus:border-primary focus:outline-none"
@@ -365,7 +365,7 @@ export default function AdminProducts() {
                         <button
                           type="button"
                           onClick={() => removeVariant(index)}
-                          className="mt-1 text-muted hover:text-red-600 transition-colors"
+                          className="mt-1 text-muted hover:text-accent transition-colors"
                           title="Remove Variant"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>

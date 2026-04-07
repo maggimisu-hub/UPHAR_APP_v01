@@ -78,18 +78,29 @@ export async function createAdminProduct(
       name: v.name,
       price: v.price,
     }));
-    const { error: variantsError } = await supabase
+    const { data: insertedVariants, error: variantsError } = await supabase
       .from("product_variants")
-      .insert(variantData);
+      .insert(variantData)
+      .select();
 
     if (variantsError) {
       throw new Error(`Failed to create variants: ${variantsError.message}`);
     }
-  }
 
-  // Note: the inventory table will not automatically get entries, but 
-  // typically admin would set inventory next anyway. Or we can init to 0.
-  // Actually, we should just let the trigger or separate process handle it, or they can set it in inventory page.
+    if (insertedVariants && insertedVariants.length > 0) {
+      const inventoryData = insertedVariants.map((v: { id: string }) => ({
+        variant_id: v.id,
+        stock: 0,
+      }));
+      const { error: inventoryError } = await supabase
+        .from("inventory")
+        .insert(inventoryData);
+
+      if (inventoryError) {
+        throw new Error(`Failed to initialize inventory: ${inventoryError.message}`);
+      }
+    }
+  }
 
   return { ...product, variants: [] } as any; 
 }
@@ -109,7 +120,6 @@ export async function updateAdminProduct(
   }
 
   // Handle variants
-  // Get existing variants
   const { data: existingVariants, error: fetchError } = await supabase
     .from("product_variants")
     .select("id")
@@ -121,22 +131,34 @@ export async function updateAdminProduct(
   const newIds = new Set(variants.filter((v) => v.id).map((v) => v.id));
 
   // Delete missing variants
-  const toDelete = Array.from(existingIds).filter((id) => !newIds.has(id));
+  const toDelete = Array.from(existingIds).filter((vid) => !newIds.has(vid));
   if (toDelete.length > 0) {
-    await supabase.from("product_variants").delete().in("id", toDelete);
+    const { error: deleteError } = await supabase.from("product_variants").delete().in("id", toDelete);
+    if (deleteError) throw new Error(`Failed to delete variants: ${deleteError.message}`);
   }
 
   // Insert and update
   for (const variant of variants) {
     if (variant.id) {
-      await supabase
+      const { error: updateError } = await supabase
         .from("product_variants")
         .update({ name: variant.name, price: variant.price })
         .eq("id", variant.id);
+      if (updateError) throw new Error(`Failed to update variant: ${updateError.message}`);
     } else {
-      await supabase
+      const { data: insertedVariant, error: insertError } = await supabase
         .from("product_variants")
-        .insert([{ product_id: id, name: variant.name, price: variant.price }]);
+        .insert([{ product_id: id, name: variant.name, price: variant.price }])
+        .select()
+        .single();
+      if (insertError) throw new Error(`Failed to insert variant: ${insertError.message}`);
+
+      if (insertedVariant) {
+        const { error: invError } = await supabase
+          .from("inventory")
+          .insert([{ variant_id: insertedVariant.id, stock: 0 }]);
+        if (invError) throw new Error(`Failed to initialize inventory for added variant: ${invError.message}`);
+      }
     }
   }
 }
