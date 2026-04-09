@@ -11,6 +11,7 @@ alter table public.addresses enable row level security;
 alter table public.payments enable row level security;
 alter table public.collections enable row level security;
 alter table public.product_collections enable row level security;
+alter table public.hero_content enable row level security;
 
 alter table public.users force row level security;
 alter table public.products force row level security;
@@ -25,6 +26,7 @@ alter table public.addresses force row level security;
 alter table public.payments force row level security;
 alter table public.collections force row level security;
 alter table public.product_collections force row level security;
+alter table public.hero_content force row level security;
 
 drop policy if exists "users_select_own_or_admin" on public.users;
 create policy "users_select_own_or_admin"
@@ -445,6 +447,35 @@ with check (public.is_admin());
 drop policy if exists "product_collections_admin_delete" on public.product_collections;
 create policy "product_collections_admin_delete"
 on public.product_collections
+for delete
+to authenticated
+using (public.is_admin());
+
+drop policy if exists "hero_content_public_select_active" on public.hero_content;
+create policy "hero_content_public_select_active"
+on public.hero_content
+for select
+to public
+using (is_active = true or public.is_admin());
+
+drop policy if exists "hero_content_admin_insert" on public.hero_content;
+create policy "hero_content_admin_insert"
+on public.hero_content
+for insert
+to authenticated
+with check (public.is_admin());
+
+drop policy if exists "hero_content_admin_update" on public.hero_content;
+create policy "hero_content_admin_update"
+on public.hero_content
+for update
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "hero_content_admin_delete" on public.hero_content;
+create policy "hero_content_admin_delete"
+on public.hero_content
 for delete
 to authenticated
 using (public.is_admin());

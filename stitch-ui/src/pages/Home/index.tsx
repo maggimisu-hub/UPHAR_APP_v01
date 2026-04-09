@@ -1,9 +1,24 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 import ProductGrid from "../../components/ProductGrid";
 import SectionTitle from "../../components/SectionTitle";
 import { useStore } from "../../context/StoreContext";
 import { testimonials } from "../../data/catalog";
+import { fetchActiveHero } from "../../services/adminHeroService";
+import type { HeroItem } from "../../services/adminHeroService";
+
+const defaultHero = {
+  eyebrow: "Uphar",
+  headline: "The Signature of Style",
+  body_copy:
+    "Premium Indian jewellery designed for weddings, festive gatherings, and meaningful gifting with a refined, minimal presentation.",
+  cta_label: "Shop New Arrivals",
+  cta_link: "/shop",
+  media_url:
+    "https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=1600&q=80",
+  is_video: false,
+};
 
 const categories = [
   {
@@ -42,35 +57,65 @@ export default function Home() {
   const featuredProducts = getFeaturedProducts().slice(0, 4);
   const newArrivals = getNewArrivals().slice(0, 4);
 
+  const [hero, setHero] = useState<HeroItem | null>(null);
+  const [heroLoaded, setHeroLoaded] = useState(false);
+
+  useEffect(() => {
+    fetchActiveHero()
+      .then((h) => {
+        setHero(h);
+        setHeroLoaded(true);
+      })
+      .catch(() => setHeroLoaded(true));
+  }, []);
+
+  const h = hero ?? defaultHero;
+  const heroMedia = h.media_url || defaultHero.media_url;
+  const heroIsVideo = hero ? h.is_video : false;
+
   return (
     <div>
       <section className="relative overflow-hidden bg-primary text-ivory">
         <div className="absolute inset-0">
-          <img
-            src="https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=1600&q=80"
-            alt="Uphar jewellery hero"
-            className="h-full w-full object-cover opacity-50"
-            referrerPolicy="no-referrer"
-          />
+          {heroIsVideo && heroMedia ? (
+            <video
+              src={heroMedia}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="h-full w-full object-cover opacity-50"
+            />
+          ) : (
+            <img
+              src={heroMedia}
+              alt="Uphar jewellery hero"
+              className="h-full w-full object-cover opacity-50"
+              referrerPolicy="no-referrer"
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-[#003D3B]/70 via-[#003D3B]/40 to-transparent" />
         </div>
 
-        <div className="container-shell relative grid min-h-[72vh] items-center py-16 sm:min-h-[82vh] sm:py-20">
+        <div className={`container-shell relative grid min-h-[72vh] items-center py-16 sm:min-h-[82vh] sm:py-20 transition-opacity duration-500 ${heroLoaded ? "opacity-100" : "opacity-0"}`}>
           <div className="mx-auto max-w-2xl text-center">
-            <p className="mb-3 text-[13px] uppercase tracking-[0.45em] text-[#F7F5F2]">Uphar</p>
+            {h.eyebrow && (
+              <p className="mb-3 text-[13px] uppercase tracking-[0.45em] text-[#F7F5F2]">{h.eyebrow}</p>
+            )}
             <h1 className="font-display text-5xl leading-none tracking-tight sm:text-6xl lg:text-7xl">
-              The Signature of Style
+              {h.headline || defaultHero.headline}
             </h1>
-            <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-ivory/85 sm:text-base">
-              Premium Indian jewellery designed for weddings, festive gatherings, and meaningful
-              gifting with a refined, minimal presentation.
-            </p>
+            {h.body_copy && (
+              <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-ivory/85 sm:text-base">
+                {h.body_copy}
+              </p>
+            )}
             <div className="mt-5 flex flex-wrap items-center justify-center gap-6">
               <Link
-                to="/shop"
+                to={h.cta_link || "/shop"}
                 className="inline-flex items-center justify-center rounded-sm bg-[#B76E79] px-6 py-3 text-sm font-semibold tracking-[0.08em] text-white transition duration-300 hover:bg-[#9f5963]"
               >
-                Shop New Arrivals
+                {h.cta_label || defaultHero.cta_label}
               </Link>
               <Link
                 to="/women"

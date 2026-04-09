@@ -105,9 +105,25 @@ create index if not exists idx_order_items_product_id on public.order_items(prod
 create index if not exists idx_order_items_variant_id on public.order_items(variant_id);
 
 create index if not exists idx_shipments_order_id on public.shipments(order_id);
+create table if not exists public.hero_content (
+  id uuid primary key default gen_random_uuid(),
+  eyebrow text not null default '',
+  headline text not null default '',
+  body_copy text not null default '',
+  cta_label text not null default 'Shop New Arrivals',
+  cta_link text not null default '/shop',
+  media_url text,
+  is_video boolean not null default false,
+  is_active boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists idx_admin_logs_admin_id on public.admin_action_logs(admin_id);
 create index if not exists idx_admin_logs_entity on public.admin_action_logs(entity_type, entity_id);
 create index if not exists idx_admin_logs_created_at on public.admin_action_logs(created_at desc);
+
+create index if not exists idx_hero_content_active on public.hero_content(is_active);
 
 create or replace function public.is_admin()
 returns boolean
