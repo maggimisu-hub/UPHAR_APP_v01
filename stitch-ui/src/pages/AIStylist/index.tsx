@@ -4,9 +4,9 @@ import ProductCard from "../../components/ProductCard";
 import { useStore } from "../../context/StoreContext";
 
 const moods = [
-  { label: "Bridal ceremony", categories: ["men", "women"] },
-  { label: "Festive evening", categories: ["women"] },
-  { label: "Gift edit", categories: ["men"] },
+  { label: "Bridal ceremony", collections: ["bridal"] as const, types: [] as string[] },
+  { label: "Festive evening", collections: ["festive"] as const, types: [] as string[] },
+  { label: "Gift edit", collections: [] as string[], types: ["bangles", "cosmetics"] },
 ];
 
 export default function AIStylist() {
@@ -15,7 +15,19 @@ export default function AIStylist() {
 
   const recommendations = useMemo(() => {
     const mood = moods.find((item) => item.label === selectedMood);
-    return products.filter((product) => mood?.categories.includes(product.category)).slice(0, 3);
+    if (!mood) return [];
+
+    return products
+      .filter((product) => {
+        if (mood.collections.length > 0) {
+          return (mood.collections as string[]).includes(product.product_collection);
+        }
+        if (mood.types.length > 0) {
+          return mood.types.includes(product.product_type);
+        }
+        return false;
+      })
+      .slice(0, 3);
   }, [products, selectedMood]);
 
   return (

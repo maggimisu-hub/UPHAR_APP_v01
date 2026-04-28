@@ -62,6 +62,12 @@ export default function Cart() {
                   </div>
                   <p className="mt-4 max-w-lg text-sm leading-7 text-muted">{line.product.description}</p>
                   
+                  {!line.product.is_returnable && (
+                    <p className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-accent bg-accent/5 inline-block px-2 py-0.5 rounded-sm">
+                      Non-returnable item
+                    </p>
+                  )}
+                  
                   {line.quantity > line.availableStock && (
                     <p className="mt-2 text-sm font-semibold text-primary">Insufficient stock. Please reduce quantity.</p>
                   )}

@@ -1,21 +1,6 @@
-import ProductGrid from "../../components/ProductGrid";
-import SectionTitle from "../../components/SectionTitle";
-import { useStore } from "../../context/StoreContext";
+import { Navigate } from "react-router-dom";
 
+/** Legacy route — redirects to the Bridal collection. */
 export default function Men() {
-  const { getProductsByCategory } = useStore();
-  const products = getProductsByCategory("men");
-
-  return (
-    <section className="container-shell py-16 sm:py-20">
-      <SectionTitle
-        eyebrow="Festive Edit"
-        title="Wedding and ceremonial jewellery with presence."
-        body="A focused edit of chokers, statement earrings, and bridal bangles selected for ceremony and celebration."
-      />
-      <div className="mt-12">
-        <ProductGrid products={products} />
-      </div>
-    </section>
-  );
+  return <Navigate to="/collection/bridal" replace />;
 }

@@ -2,7 +2,7 @@ import { Heart, ShoppingBag } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useStore } from "../context/StoreContext";
-import { formatCollection, formatPrice } from "../lib/format";
+import { formatTaxonomy, formatPrice } from "../lib/format";
 import type { Product } from "../types";
 
 export default function ProductCard({ product }: { product: Product }) {
@@ -34,7 +34,7 @@ export default function ProductCard({ product }: { product: Product }) {
             {product.name}
           </Link>
           <p className="text-[11px] uppercase tracking-[0.22em] text-charcoal/70">
-            {formatCollection(product.category)}
+            {formatTaxonomy(product.product_type)}
           </p>
           <p className={`text-sm ${isOutOfStock ? "text-primary" : isLowStock ? "text-accent" : "text-muted"}`}>
             {isOutOfStock ? "Out of stock" : isLowStock ? `Only ${defaultStock} left` : "Available for checkout"}

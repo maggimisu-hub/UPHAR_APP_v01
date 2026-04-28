@@ -4,13 +4,15 @@ import { Link, useLocation } from "react-router-dom";
 
 import BrandLogo from "./BrandLogo";
 import { useStore } from "../context/StoreContext";
-import { formatCollection } from "../lib/format";
+import { formatTaxonomy } from "../lib/format";
 
 const navLinks = [
   { to: "/", label: "Home" },
-  { to: "/men", label: "Bridal" },
-  { to: "/women", label: "Festive" },
-  { to: "/shop", label: "Jewellery" },
+  { to: "/collection/bridal", label: "Bridal" },
+  { to: "/collection/festive", label: "Festive" },
+  { to: "/type/jewellery", label: "Jewellery" },
+  { to: "/type/bangles", label: "Bangles" },
+  { to: "/type/cosmetics", label: "Cosmetics" },
 ];
 
 export default function Navbar() {
@@ -60,7 +62,7 @@ export default function Navbar() {
                       className="block rounded-sm px-3 py-3 text-sm text-charcoal transition duration-300 hover:bg-background-light hover:text-accent"
                     >
                       <span className="block font-serif text-primary">{product.name}</span>
-                      <span className="mt-1 block text-charcoal/70">{formatCollection(product.category)}</span>
+                      <span className="mt-1 block text-charcoal/70">{formatTaxonomy(product.product_type)}</span>
                     </Link>
                   ))
                 ) : (

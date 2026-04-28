@@ -39,6 +39,10 @@ export type AdminProduct = {
   is_active: boolean;
   is_featured: boolean;
   is_new: boolean;
+  product_type: string;
+  product_collection: string;
+  is_returnable: boolean;
+  return_policy_note: string | null;
   variants: AdminProductVariant[];
   media: AdminProductMedia[];
 };
@@ -54,6 +58,10 @@ export async function getAdminProducts(): Promise<AdminProduct[]> {
       is_active,
       is_featured,
       is_new,
+      product_type,
+      product_collection,
+      is_returnable,
+      return_policy_note,
       product_variants (
         id,
         name,
@@ -80,6 +88,10 @@ export async function getAdminProducts(): Promise<AdminProduct[]> {
     is_active: product.is_active,
     is_featured: product.is_featured,
     is_new: product.is_new,
+    product_type: product.product_type,
+    product_collection: product.product_collection,
+    is_returnable: product.is_returnable,
+    return_policy_note: product.return_policy_note,
     variants: (product.product_variants ?? []).map((variant: any) => ({
       id: variant.id,
       name: variant.name,

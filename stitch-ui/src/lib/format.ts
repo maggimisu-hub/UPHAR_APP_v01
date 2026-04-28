@@ -14,6 +14,7 @@ export function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-export function formatCollection(category: "men" | "women") {
-  return category === "men" ? "Bridal Edit" : "Festive Edit";
+export function formatTaxonomy(value: string) {
+  if (!value || value === "none") return "";
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }

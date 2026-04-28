@@ -17,6 +17,10 @@ export default function AdminProducts() {
     is_active: true,
     is_featured: false,
     is_new: false,
+    product_type: "jewellery",
+    product_collection: "none",
+    is_returnable: true,
+    return_policy_note: "",
     variants: [] as { id?: string; name: string; price: number }[],
     media: [] as { id?: string; image_url: string; is_video: boolean; display_order: number; file?: File }[],
   });
@@ -49,6 +53,10 @@ export default function AdminProducts() {
         is_active: product.is_active,
         is_featured: product.is_featured,
         is_new: product.is_new,
+        product_type: product.product_type || "jewellery",
+        product_collection: product.product_collection || "none",
+        is_returnable: product.is_returnable,
+        return_policy_note: product.return_policy_note || "",
         variants: [...product.variants],
         media: product.media ? product.media.map(m => ({ ...m })) : [],
       });
@@ -61,6 +69,10 @@ export default function AdminProducts() {
         is_active: true,
         is_featured: false,
         is_new: false,
+        product_type: "jewellery",
+        product_collection: "none",
+        is_returnable: true,
+        return_policy_note: "",
         variants: [{ name: "Default", price: 0 }],
         media: [],
       });
@@ -196,6 +208,10 @@ export default function AdminProducts() {
         is_active: formData.is_active,
         is_featured: formData.is_featured,
         is_new: formData.is_new,
+        product_type: formData.product_type,
+        product_collection: formData.product_collection,
+        is_returnable: formData.is_returnable,
+        return_policy_note: formData.return_policy_note,
       };
 
       if (editingProduct) {
@@ -231,6 +247,10 @@ export default function AdminProducts() {
         is_active: !product.is_active,
         is_featured: product.is_featured,
         is_new: product.is_new,
+        product_type: product.product_type,
+        product_collection: product.product_collection,
+        is_returnable: product.is_returnable,
+        return_policy_note: product.return_policy_note,
       };
       await adminProductService.updateAdminProduct(product.id, productPayload, product.variants, product.media || []);
       await loadProducts();
@@ -370,6 +390,58 @@ export default function AdminProducts() {
                     className="w-full rounded-[12px] border border-primary/20 bg-transparent p-3 text-sm text-primary placeholder:text-muted/50 focus:border-primary focus:outline-none focus:ring-0 resize-y"
                     placeholder="Rich product description..."
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-muted mb-1">Product Type</label>
+                    <select
+                      value={formData.product_type}
+                      onChange={(e) => setFormData({ ...formData, product_type: e.target.value })}
+                      className="w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-2 pt-1 text-sm text-primary focus:border-primary focus:outline-none focus:ring-0"
+                    >
+                      <option value="jewellery">Jewellery</option>
+                      <option value="bangles">Bangles</option>
+                      <option value="cosmetics">Cosmetics</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted mb-1">Collection</label>
+                    <select
+                      value={formData.product_collection}
+                      onChange={(e) => setFormData({ ...formData, product_collection: e.target.value })}
+                      className="w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-2 pt-1 text-sm text-primary focus:border-primary focus:outline-none focus:ring-0"
+                    >
+                      <option value="none">None</option>
+                      <option value="bridal">Bridal</option>
+                      <option value="festive">Festive</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_returnable}
+                      onChange={(e) => setFormData({ ...formData, is_returnable: e.target.checked })}
+                      className="accent-primary"
+                    />
+                    <span className="text-sm text-primary">Is Returnable?</span>
+                  </label>
+                  
+                  {!formData.is_returnable && (
+                    <div>
+                      <label className="block text-xs text-muted mb-1">Return Policy Note</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Non-returnable due to hygiene reasons"
+                        value={formData.return_policy_note}
+                        onChange={(e) => setFormData({ ...formData, return_policy_note: e.target.value })}
+                        className="w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-2 pt-1 text-sm text-primary focus:border-primary focus:outline-none focus:ring-0"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-6 pt-2">

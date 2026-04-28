@@ -23,7 +23,7 @@ const defaultHero = {
 const categories = [
   {
     title: "Bridal Sets",
-    href: "/women",
+    href: "/collection/bridal",
     description:
       "Wedding necklaces, chandelier earrings, and ceremonial sets chosen for the grandest occasions.",
     image:
@@ -31,7 +31,7 @@ const categories = [
   },
   {
     title: "Festive Classics",
-    href: "/men",
+    href: "/collection/festive",
     description:
       "Polki chokers, temple bangles, and signature earrings for celebrations, gifting, and family rituals.",
     image:
@@ -118,7 +118,7 @@ export default function Home() {
                 {h.cta_label || defaultHero.cta_label}
               </Link>
               <Link
-                to="/women"
+                to="/shop"
                 className="inline-flex items-center justify-center rounded-sm border border-[#B76E79] px-5 py-2.5 text-sm font-semibold tracking-[0.08em] text-[#B76E79] transition duration-300 hover:bg-white/5"
               >
                 Explore Collections

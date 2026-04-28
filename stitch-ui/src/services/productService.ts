@@ -35,6 +35,10 @@ export type StorefrontProduct = {
   price: number;
   isFeatured: boolean;
   isNew: boolean;
+  product_type: string;
+  product_collection: string;
+  is_returnable: boolean;
+  return_policy_note: string | null;
   media: Array<{
     url: string;
     isVideo: boolean;
@@ -59,6 +63,10 @@ export async function getAllProducts(): Promise<StorefrontProduct[]> {
       price,
       is_featured,
       is_new,
+      product_type,
+      product_collection,
+      is_returnable,
+      return_policy_note,
       product_images (
         image_url,
         is_video,
@@ -89,6 +97,10 @@ export async function getAllProducts(): Promise<StorefrontProduct[]> {
       price: product.price,
       isFeatured: product.is_featured,
       isNew: product.is_new,
+      product_type: product.product_type,
+      product_collection: product.product_collection,
+      is_returnable: product.is_returnable,
+      return_policy_note: product.return_policy_note,
       media: sortedMedia.map((m: any) => ({
         url: m.image_url,
         isVideo: m.is_video ?? false,

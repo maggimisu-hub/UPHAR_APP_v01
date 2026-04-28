@@ -16,6 +16,12 @@ create table if not exists public.products (
   is_featured boolean not null default false,
   is_new boolean not null default false,
   is_active boolean not null default true,
+  product_type text not null default 'jewellery'
+    check (product_type in ('jewellery', 'bangles', 'cosmetics')),
+  product_collection text not null default 'none'
+    check (product_collection in ('none', 'bridal', 'festive')),
+  is_returnable boolean not null default true,
+  return_policy_note text,
   created_at timestamptz not null default now()
 );
 

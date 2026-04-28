@@ -17,7 +17,7 @@ export default function ProductDetail() {
     () =>
       product
         ? products
-            .filter((item) => item.category === product.category && item.id !== product.id)
+            .filter((item) => item.product_type === product.product_type && item.id !== product.id)
             .slice(0, 4)
         : [],
     [product, products],

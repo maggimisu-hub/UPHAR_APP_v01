@@ -32,9 +32,12 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Home />} />
+            <Route path="collection/:collection" element={<Shop />} />
+            <Route path="type/:type" element={<Shop />} />
+            <Route path="shop" element={<Shop />} />
+            {/* Legacy redirects — old /men and /women bookmarks */}
             <Route path="men" element={<Men />} />
             <Route path="women" element={<Women />} />
-            <Route path="shop" element={<Shop />} />
             <Route path="product/:id" element={<ProductDetail />} />
             <Route path="cart" element={<Cart />} />
             <Route path="checkout" element={<Checkout />} />

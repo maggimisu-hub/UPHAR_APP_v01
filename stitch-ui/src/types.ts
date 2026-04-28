@@ -1,4 +1,5 @@
-export type ProductCategory = "men" | "women";
+export type ProductType = "jewellery" | "bangles" | "cosmetics";
+export type ProductCollection = "none" | "bridal" | "festive";
 
 export type Product = {
   id: string;
@@ -10,7 +11,10 @@ export type Product = {
     isVideo: boolean;
     displayOrder: number;
   }>;
-  category: ProductCategory;
+  product_type: ProductType;
+  product_collection: ProductCollection;
+  is_returnable: boolean;
+  return_policy_note?: string;
   sizes: string[];
   description: string;
   tag: string;

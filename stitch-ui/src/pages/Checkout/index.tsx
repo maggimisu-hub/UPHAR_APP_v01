@@ -133,6 +133,9 @@ export default function Checkout() {
                 <div>
                   <p className="text-primary">{line.product.name}</p>
                   <p className="mt-1 text-muted">Fit {line.size} x {line.quantity}</p>
+                  {!line.product.is_returnable && (
+                    <p className="mt-1 text-[10px] font-bold text-accent uppercase tracking-tighter italic">Final Sale</p>
+                  )}
                 </div>
                 <p className="text-primary">{formatPrice(line.lineTotal)}</p>
               </div>

@@ -19,6 +19,21 @@ export default function ProductPurchasePanel({ product }: { product: Product }) 
       <p className="mt-4 text-[18px] font-bold text-accent">{formatPrice(product.price)}</p>
       <p className="mt-6 text-sm leading-6 text-muted">{product.description}</p>
 
+      {/* Return Policy */}
+      <div className="mt-6 border-t border-primary/5 pt-6">
+        <div className="flex items-center gap-2">
+          <div className={`h-1.5 w-1.5 rounded-full ${product.is_returnable ? 'bg-primary' : 'bg-accent'}`} />
+          <p className={`text-[11px] font-medium uppercase tracking-wider ${product.is_returnable ? 'text-primary' : 'text-accent'}`}>
+            {product.is_returnable ? 'Returnable' : 'Final Sale / Non-Returnable'}
+          </p>
+        </div>
+        {product.return_policy_note && (
+          <p className="mt-1.5 text-xs text-charcoal/60">
+            {product.return_policy_note}
+          </p>
+        )}
+      </div>
+
       <div className="mt-8">
         <p className="text-[11px] uppercase tracking-[0.28em] text-charcoal/70">Bangle size / Fit guide</p>
         <div className="mt-4 flex flex-wrap gap-3">

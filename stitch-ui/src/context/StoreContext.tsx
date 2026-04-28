@@ -12,7 +12,7 @@ import { supabase } from "../lib/supabaseClient";
 import { productService } from "../services/productService";
 import { orderService } from "../services/orderService";
 import { getCurrentUser, signInWithEmail, signUpWithEmail, signOutCurrentUser } from "../services/authService";
-import type { Address, CartItem, CheckoutFormValues, Order, Product } from "../types";
+import type { Address, CartItem, CheckoutFormValues, Order, Product, ProductType, ProductCollection } from "../types";
 
 const STORAGE_KEY = "stitch-ui-store";
 
@@ -50,7 +50,8 @@ type StoreContextValue = {
   confirmPayment: (orderId: string) => Order | null;
   refreshOrders: () => Promise<void>;
   getProductById: (productId: string) => Product | undefined;
-  getProductsByCategory: (category: Product["category"]) => Product[];
+  getProductsByType: (type: ProductType) => Product[];
+  getProductsByCollection: (collection: ProductCollection) => Product[];
   getFeaturedProducts: () => Product[];
   getNewArrivals: () => Product[];
   searchProducts: (query: string) => Product[];
@@ -151,7 +152,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           price: p.price,
           images: p.images,
           media: p.media,
-          category: "men" as const, // Default category, will be updated when backend has categories
+          product_type: p.product_type as ProductType,
+          product_collection: p.product_collection as ProductCollection,
+          is_returnable: p.is_returnable,
+          return_policy_note: p.return_policy_note || undefined,
           sizes: p.variants.map((v) => v.name),
           description: p.description || "",
           tag: p.isFeatured ? "Featured" : p.isNew ? "New Arrival" : "Signature",
@@ -392,9 +396,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const getProductById = (productId: string) =>
     products.find((product) => product.id === productId);
+    
+  const getProductsByType = (type: ProductType) =>
+    products.filter((product) => product.product_type === type);
 
-  const getProductsByCategory = (category: Product["category"]) =>
-    products.filter((product) => product.category === category);
+  const getProductsByCollection = (collection: ProductCollection) =>
+    products.filter((product) => product.product_collection === collection);
 
   const getFeaturedProducts = () => products.filter((product) => product.featured);
   const getNewArrivals = () => products.filter((product) => product.newArrival);
@@ -405,7 +412,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
 
     return products.filter((product) =>
-      [product.name, product.category, product.description, product.tag]
+      [product.name, product.product_type, product.product_collection, product.description, product.tag]
         .join(" ")
         .toLowerCase()
         .includes(normalized),
@@ -441,7 +448,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         confirmPayment,
         refreshOrders,
         getProductById,
-        getProductsByCategory,
+        getProductsByType,
+        getProductsByCollection,
         getFeaturedProducts,
         getNewArrivals,
         searchProducts,
