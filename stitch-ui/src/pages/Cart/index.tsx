@@ -2,6 +2,7 @@ import Button from "../../components/Button";
 import SectionTitle from "../../components/SectionTitle";
 import { useStore } from "../../context/StoreContext";
 import { formatPrice } from "../../lib/format";
+import { getProductTypeCopy } from "../../lib/productTypeLabels";
 
 export default function Cart() {
   const { cartDetailed, cartSubtotal, cart, productsLoading, removeFromCart, updateCartQuantity, lastAdjustmentMessage } = useStore();
@@ -34,8 +35,8 @@ export default function Cart() {
     <section className="container-shell py-16 sm:py-20">
       <SectionTitle
         eyebrow="Cart"
-        title="Review your selected jewellery."
-        body="Adjust quantities, remove pieces, and continue when your order feels complete."
+        title="Review your selected items."
+        body="Adjust quantities, remove products, and continue when your order feels complete."
       />
 
       {lastAdjustmentMessage && (
@@ -56,7 +57,9 @@ export default function Cart() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <h3 className="text-[18px] font-semibold leading-[1.3] text-primary">{line.product.name}</h3>
-                      <p className="mt-1 text-sm text-muted">Fit {line.size}</p>
+                      <p className="mt-1 text-sm text-muted">
+                        {getProductTypeCopy(line.product.product_type).lineItemLabel}: {line.size}
+                      </p>
                     </div>
                     <p className="text-sm text-primary">{formatPrice(line.lineTotal)}</p>
                   </div>

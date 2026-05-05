@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import Button from "../../components/Button";
 import { useStore } from "../../context/StoreContext";
 import { formatDate, formatPrice } from "../../lib/format";
+import { getProductTypeCopy } from "../../lib/productTypeLabels";
 import {
   TAKEAWAY_STORE,
   getTakeawayNextAction,
@@ -157,11 +158,14 @@ export default function OrderDetails() {
           ) : (
             order.items.map((item) => {
               const product = getProductById(item.productId);
+              const lineItemLabel = product
+                ? getProductTypeCopy(product.product_type).lineItemLabel
+                : "Variant";
               return (
                 <div key={`${item.productId}-${item.size}`} className="flex items-center justify-between text-sm">
                   <div>
-                    <p className="text-primary">{product?.name ?? "Jewellery item"}</p>
-                    <p className="text-muted">Variant {item.size} x {item.quantity}</p>
+                    <p className="text-primary">{product?.name ?? "Product item"}</p>
+                    <p className="text-muted">{lineItemLabel}: {item.size} x {item.quantity}</p>
                   </div>
                   <span className="text-charcoal">
                     {formatPrice((product?.price ?? 0) * item.quantity)}

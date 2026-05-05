@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { useStore } from "../context/StoreContext";
 import { formatPrice } from "../lib/format";
+import { getProductTypeCopy } from "../lib/productTypeLabels";
 import type { Product } from "../types";
 import Button from "./Button";
 
@@ -11,6 +12,7 @@ export default function ProductPurchasePanel({ product }: { product: Product }) 
   const { addToCart } = useStore();
   const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
   const [added, setAdded] = useState(false);
+  const productCopy = getProductTypeCopy(product.product_type);
 
   return (
     <div className="rounded-sm border border-primary/10 bg-ivory p-6 sm:p-8">
@@ -35,7 +37,7 @@ export default function ProductPurchasePanel({ product }: { product: Product }) 
       </div>
 
       <div className="mt-8">
-        <p className="text-[11px] uppercase tracking-[0.28em] text-charcoal/70">Bangle size / Fit guide</p>
+        <p className="text-[11px] uppercase tracking-[0.28em] text-charcoal/70">{productCopy.selectorHeading}</p>
         <div className="mt-4 flex flex-wrap gap-3">
           {product.sizes.map((size) => (
             <button

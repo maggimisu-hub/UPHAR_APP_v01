@@ -7,11 +7,13 @@ import ProductGrid from "../../components/ProductGrid";
 import ProductPurchasePanel from "../../components/ProductPurchasePanel";
 import SectionTitle from "../../components/SectionTitle";
 import { useStore } from "../../context/StoreContext";
+import { getProductTypeCopy } from "../../lib/productTypeLabels";
 
 export default function ProductDetail() {
   const { id } = useParams();
   const { getProductById, products } = useStore();
   const product = id ? getProductById(id) : undefined;
+  const productCopy = product ? getProductTypeCopy(product.product_type) : null;
 
   const related = useMemo(
     () =>
@@ -28,7 +30,7 @@ export default function ProductDetail() {
       <div className="container-shell py-24 text-center">
         <h1 className="text-[1.75rem] font-bold leading-[1.25] text-primary">That piece could not be found.</h1>
         <p className="mt-4 text-sm leading-7 text-charcoal/80">
-          The jewellery listing may have moved, or the link may no longer be available.
+          The product listing may have moved, or the link may no longer be available.
         </p>
         <div className="mt-8">
           <Button href="/">Return home</Button>
@@ -49,9 +51,9 @@ export default function ProductDetail() {
       <section className="pt-20">
         <div className="container-shell">
           <SectionTitle
-            eyebrow="Related Jewellery"
-            title="Complete the set."
-            body="Related jewellery selected to complement this piece for gifting, ceremony, or festive dressing."
+            eyebrow={productCopy?.relatedEyebrow ?? "Related Products"}
+            title={productCopy?.relatedTitle ?? "Related products."}
+            body={productCopy?.relatedBody ?? "Related products selected to complement this item."}
           />
           <div className="mt-12">
             <ProductGrid products={related} />

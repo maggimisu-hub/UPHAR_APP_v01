@@ -7,6 +7,7 @@ import SectionTitle from "../../components/SectionTitle";
 import Textarea from "../../components/Textarea";
 import { useStore } from "../../context/StoreContext";
 import { formatPrice } from "../../lib/format";
+import { getProductTypeCopy } from "../../lib/productTypeLabels";
 import type { CheckoutFormValues } from "../../types";
 
 const initialForm: CheckoutFormValues = {
@@ -99,14 +100,14 @@ export default function Checkout() {
       <SectionTitle
         eyebrow="Checkout"
         title="Complete your Uphar order."
-        body="Enter delivery details for your jewellery shipment to place your order."
+        body="Enter delivery details to place your order."
       />
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <form onSubmit={handleSubmit} className="space-y-5 rounded-[32px] border border-primary/15 bg-ivory p-6 sm:p-8">
           <div>
             <p className="text-[11px] uppercase tracking-[0.3em] text-muted">Delivery details</p>
-            <h2 className="mt-3 text-[1.375rem] font-bold leading-[1.25] text-primary">Jewellery checkout</h2>
+            <h2 className="mt-3 text-[1.375rem] font-bold leading-[1.25] text-primary">Order checkout</h2>
           </div>
           {submitError && (
             <div className="rounded-[16px] border border-primary/10 bg-primary/5 p-4 text-sm text-primary">
@@ -121,7 +122,7 @@ export default function Checkout() {
             <Input label="Pincode" value={values.pincode} onChange={(event) => updateField("pincode", event.target.value)} error={errors.pincode} placeholder="6 digit pincode" inputMode="numeric" />
           </div>
           <Button type="submit" className="w-full">
-            Place jewellery order
+            Place order
           </Button>
         </form>
 
@@ -132,7 +133,9 @@ export default function Checkout() {
               <div key={`${line.product.id}-${line.size}`} className="flex items-center justify-between gap-4 border-b border-primary/15 pb-4 text-sm">
                 <div>
                   <p className="text-primary">{line.product.name}</p>
-                  <p className="mt-1 text-muted">Fit {line.size} x {line.quantity}</p>
+                  <p className="mt-1 text-muted">
+                    {getProductTypeCopy(line.product.product_type).lineItemLabel}: {line.size} x {line.quantity}
+                  </p>
                   {!line.product.is_returnable && (
                     <p className="mt-1 text-[10px] font-bold text-accent uppercase tracking-tighter italic">Final Sale</p>
                   )}

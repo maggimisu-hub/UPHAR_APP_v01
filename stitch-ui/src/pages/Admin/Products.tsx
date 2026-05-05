@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { formatPrice } from "../../lib/format";
+import { getProductTypeCopy } from "../../lib/productTypeLabels";
 import { adminProductService, type AdminProduct, type AdminProductMedia } from "../../services/adminProductService";
+import type { ProductCollection, ProductType } from "../../types";
 
 export default function AdminProducts() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -53,8 +55,8 @@ export default function AdminProducts() {
         is_active: product.is_active,
         is_featured: product.is_featured,
         is_new: product.is_new,
-        product_type: product.product_type || "jewellery",
-        product_collection: product.product_collection || "none",
+        product_type: (product.product_type || "jewellery") as ProductType,
+        product_collection: (product.product_collection || "none") as ProductCollection,
         is_returnable: product.is_returnable,
         return_policy_note: product.return_policy_note || "",
         variants: [...product.variants],
@@ -69,11 +71,11 @@ export default function AdminProducts() {
         is_active: true,
         is_featured: false,
         is_new: false,
-        product_type: "jewellery",
-        product_collection: "none",
+        product_type: "jewellery" as ProductType,
+        product_collection: "none" as ProductCollection,
         is_returnable: true,
         return_policy_note: "",
-        variants: [{ name: "Default", price: 0 }],
+        variants: [{ name: "", price: 0 }],
         media: [],
       });
     }
@@ -259,6 +261,8 @@ export default function AdminProducts() {
     }
   };
 
+  const variantPlaceholder = getProductTypeCopy(formData.product_type as ProductType).variantPlaceholder;
+
   if (loading && products.length === 0) {
     return <div className="p-5 text-sm text-muted">Loading products...</div>;
   }
@@ -397,7 +401,7 @@ export default function AdminProducts() {
                     <label className="block text-xs text-muted mb-1">Product Type</label>
                     <select
                       value={formData.product_type}
-                      onChange={(e) => setFormData({ ...formData, product_type: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, product_type: e.target.value as ProductType })}
                       className="w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-2 pt-1 text-sm text-primary focus:border-primary focus:outline-none focus:ring-0"
                     >
                       <option value="jewellery">Jewellery</option>
@@ -409,10 +413,10 @@ export default function AdminProducts() {
                     <label className="block text-xs text-muted mb-1">Collection</label>
                     <select
                       value={formData.product_collection}
-                      onChange={(e) => setFormData({ ...formData, product_collection: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, product_collection: e.target.value as ProductCollection })}
                       className="w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-2 pt-1 text-sm text-primary focus:border-primary focus:outline-none focus:ring-0"
                     >
-                      <option value="none">None</option>
+                      <option value="none">No special collection</option>
                       <option value="bridal">Bridal</option>
                       <option value="festive">Festive</option>
                     </select>
@@ -477,7 +481,7 @@ export default function AdminProducts() {
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs text-muted">Variants</label>
+                  <label className="block text-xs text-muted">Variant / Unit Labels</label>
                   <button
                     type="button"
                     onClick={addVariant}
@@ -486,6 +490,9 @@ export default function AdminProducts() {
                     + Add Variant
                   </button>
                 </div>
+                <p className="text-xs text-muted">
+                  Examples only. You can enter any label required for this product.
+                </p>
 
                 <div className="space-y-3">
                   {formData.variants.map((variant, index) => (
@@ -495,7 +502,7 @@ export default function AdminProducts() {
                           <input
                             type="text"
                             required
-                            placeholder="Variant Name (e.g. 18k Rose Gold, 10g)"
+                            placeholder={variantPlaceholder}
                             value={variant.name}
                             onChange={(e) => updateVariant(index, "name", e.target.value)}
                             className="w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-1 text-sm text-primary focus:border-primary focus:outline-none"
