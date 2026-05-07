@@ -9,6 +9,8 @@ export type HeroItem = {
   cta_link: string;
   media_url: string | null;
   is_video: boolean;
+  mobile_media_url: string | null;
+  mobile_is_video: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -22,6 +24,8 @@ export type HeroItemInput = {
   cta_link: string;
   media_url?: string | null;
   is_video?: boolean;
+  mobile_media_url?: string | null;
+  mobile_is_video?: boolean;
   is_active?: boolean;
 };
 
@@ -81,6 +85,8 @@ export async function createHeroItem(input: HeroItemInput): Promise<HeroItem> {
       cta_link: input.cta_link,
       media_url: input.media_url ?? null,
       is_video: input.is_video ?? false,
+      mobile_media_url: input.mobile_media_url ?? null,
+      mobile_is_video: input.mobile_is_video ?? false,
       is_active: input.is_active ?? false,
     })
     .select()
@@ -124,10 +130,10 @@ async function deactivateAllHeroes(): Promise<void> {
 /* ──────────────────  DELETE  ────────────────── */
 
 export async function deleteHeroItem(id: string): Promise<void> {
-  // 1. Fetch current item to get media_url
+  // 1. Fetch current item to get media URLs
   const { data: item } = await supabase
     .from("hero_content")
-    .select("media_url")
+    .select("media_url, mobile_media_url")
     .eq("id", id)
     .single();
 
@@ -142,6 +148,9 @@ export async function deleteHeroItem(id: string): Promise<void> {
   // 3. Only after DB success, clean up storage
   if (item?.media_url) {
     await deleteHeroMediaFromStorage(item.media_url);
+  }
+  if (item?.mobile_media_url) {
+    await deleteHeroMediaFromStorage(item.mobile_media_url);
   }
 }
 

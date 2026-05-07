@@ -20,6 +20,8 @@ const emptyForm: HeroItemInput = {
   cta_link: "/shop",
   media_url: null,
   is_video: false,
+  mobile_media_url: null,
+  mobile_is_video: false,
   is_active: false,
 };
 
@@ -34,6 +36,8 @@ export default function HeroContent() {
   const [form, setForm] = useState<HeroItemInput>({ ...emptyForm });
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+  const [mobileMediaFile, setMobileMediaFile] = useState<File | null>(null);
+  const [mobileMediaPreview, setMobileMediaPreview] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
@@ -68,6 +72,8 @@ export default function HeroContent() {
     setForm({ ...emptyForm });
     setMediaFile(null);
     setMediaPreview(null);
+    setMobileMediaFile(null);
+    setMobileMediaPreview(null);
     setShowForm(false);
   }
 
@@ -86,10 +92,14 @@ export default function HeroContent() {
       cta_link: item.cta_link,
       media_url: item.media_url,
       is_video: item.is_video,
+      mobile_media_url: item.mobile_media_url,
+      mobile_is_video: item.mobile_is_video,
       is_active: item.is_active,
     });
     setMediaFile(null);
     setMediaPreview(item.media_url ?? null);
+    setMobileMediaFile(null);
+    setMobileMediaPreview(item.mobile_media_url ?? null);
     setShowForm(true);
   }
 
@@ -99,6 +109,16 @@ export default function HeroContent() {
     setMediaFile(file);
     setForm((f) => ({ ...f, is_video: isVideoFile(file) }));
     setMediaPreview(URL.createObjectURL(file));
+    e.target.value = "";
+  }
+
+  function handleMobileMediaSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMobileMediaFile(file);
+    setForm((f) => ({ ...f, mobile_is_video: isVideoFile(file) }));
+    setMobileMediaPreview(URL.createObjectURL(file));
+    e.target.value = "";
   }
 
   async function handleRemoveMedia() {
@@ -106,6 +126,12 @@ export default function HeroContent() {
     setMediaFile(null);
     setMediaPreview(null);
     setForm((f) => ({ ...f, media_url: null, is_video: false }));
+  }
+
+  async function handleRemoveMobileMedia() {
+    setMobileMediaFile(null);
+    setMobileMediaPreview(null);
+    setForm((f) => ({ ...f, mobile_media_url: null, mobile_is_video: false }));
   }
 
   /* ── save ── */
@@ -117,7 +143,10 @@ export default function HeroContent() {
 
       let finalMediaUrl = form.media_url;
       let finalIsVideo = form.is_video;
+      let finalMobileMediaUrl = form.mobile_media_url;
+      let finalMobileIsVideo = form.mobile_is_video;
       let oldMediaToDelete: string | null = null;
+      let oldMobileMediaToDelete: string | null = null;
 
       // 1. Handle media changes (upload new first)
       if (mediaFile) {
@@ -140,11 +169,30 @@ export default function HeroContent() {
         }
       }
 
+      if (mobileMediaFile) {
+        if (editingId) {
+          const original = items.find((i) => i.id === editingId);
+          if (original?.mobile_media_url) {
+            oldMobileMediaToDelete = original.mobile_media_url;
+          }
+        }
+
+        finalMobileMediaUrl = await uploadHeroMedia(mobileMediaFile);
+        finalMobileIsVideo = isVideoFile(mobileMediaFile);
+      } else if (form.mobile_media_url === null && editingId) {
+        const original = items.find((i) => i.id === editingId);
+        if (original?.mobile_media_url) {
+          oldMobileMediaToDelete = original.mobile_media_url;
+        }
+      }
+
       // 2. Commit to database
       const payload: HeroItemInput = {
         ...form,
         media_url: finalMediaUrl,
         is_video: finalIsVideo,
+        mobile_media_url: finalMobileMediaUrl,
+        mobile_is_video: finalMobileIsVideo,
       };
 
       if (editingId) {
@@ -161,6 +209,14 @@ export default function HeroContent() {
           // Surface cleanup failure but don't revert the DB change as it's already committed
           console.error("Storage cleanup failed:", cleanupErr);
           alert(`Content saved, but old media cleanup failed: ${cleanupErr.message}`);
+        }
+      }
+      if (oldMobileMediaToDelete) {
+        try {
+          await deleteHeroMediaFromStorage(oldMobileMediaToDelete);
+        } catch (cleanupErr: any) {
+          console.error("Mobile storage cleanup failed:", cleanupErr);
+          alert(`Content saved, but old mobile media cleanup failed: ${cleanupErr.message}`);
         }
       }
 
@@ -203,6 +259,85 @@ export default function HeroContent() {
   }
 
   /* ── render ── */
+
+  function renderMediaField({
+    label,
+    helper,
+    preview,
+    file,
+    isVideo,
+    mediaUrl,
+    onSelect,
+    onRemove,
+  }: {
+    label: string;
+    helper: string;
+    preview: string | null;
+    file: File | null;
+    isVideo: boolean | undefined;
+    mediaUrl: string | null | undefined;
+    onSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onRemove: () => void;
+  }) {
+    const shouldRenderVideo = file
+      ? isVideoFile(file)
+      : Boolean(isVideo || (mediaUrl && isVideoUrl(mediaUrl)));
+
+    return (
+      <div>
+        <label className="block text-xs font-medium uppercase tracking-wider text-charcoal/70">
+          {label}
+        </label>
+        <p className="mt-1 text-xs text-charcoal/55">{helper}</p>
+        {preview ? (
+          <div className="mt-2">
+            {shouldRenderVideo ? (
+              <video
+                src={preview}
+                className="h-40 w-full rounded-sm border border-primary/15 object-cover"
+                muted
+                playsInline
+              />
+            ) : (
+              <img
+                src={preview}
+                alt={`${label} preview`}
+                className="h-40 w-full rounded-sm border border-primary/15 object-cover"
+              />
+            )}
+            <div className="mt-2 flex gap-2">
+              <label className="cursor-pointer rounded-sm border border-accent px-3 py-1 text-xs font-semibold text-accent transition hover:bg-accent/10">
+                Replace
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={onSelect}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={onRemove}
+                className="rounded-sm border border-accent/20 px-3 py-1 text-xs font-semibold text-accent transition hover:bg-accent/5"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ) : (
+          <label className="mt-2 flex h-32 cursor-pointer items-center justify-center rounded-sm border-2 border-dashed border-primary/20 bg-white text-sm text-charcoal/50 transition hover:border-accent hover:text-accent">
+            Click to upload image or video
+            <input
+              type="file"
+              accept="image/*,video/*"
+              className="hidden"
+              onChange={onSelect}
+            />
+          </label>
+        )}
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -320,56 +455,27 @@ export default function HeroContent() {
               </div>
             </div>
 
-            {/* Media */}
-            <div>
-              <label className="block text-xs font-medium uppercase tracking-wider text-charcoal/70">
-                Hero Media (image or video)
-              </label>
-              {mediaPreview ? (
-                <div className="mt-2">
-                  {(mediaFile ? isVideoFile(mediaFile) : form.is_video || (form.media_url && isVideoUrl(form.media_url))) ? (
-                    <video
-                      src={mediaPreview}
-                      className="h-40 w-full rounded-sm border border-primary/15 object-cover"
-                      muted
-                      playsInline
-                    />
-                  ) : (
-                    <img
-                      src={mediaPreview}
-                      alt="Hero preview"
-                      className="h-40 w-full rounded-sm border border-primary/15 object-cover"
-                    />
-                  )}
-                  <div className="mt-2 flex gap-2">
-                    <label className="cursor-pointer rounded-sm border border-accent px-3 py-1 text-xs font-semibold text-accent transition hover:bg-accent/10">
-                      Replace
-                      <input
-                        type="file"
-                        accept="image/*,video/*"
-                        className="hidden"
-                        onChange={handleMediaSelect}
-                      />
-                    </label>
-                    <button
-                      onClick={handleRemoveMedia}
-                      className="rounded-sm border border-accent/20 px-3 py-1 text-xs font-semibold text-accent transition hover:bg-accent/5"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <label className="mt-2 flex h-32 cursor-pointer items-center justify-center rounded-sm border-2 border-dashed border-primary/20 bg-white text-sm text-charcoal/50 transition hover:border-accent hover:text-accent">
-                  Click to upload image or video
-                  <input
-                    type="file"
-                    accept="image/*,video/*"
-                    className="hidden"
-                    onChange={handleMediaSelect}
-                  />
-                </label>
-              )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {renderMediaField({
+                label: "Desktop Hero Media",
+                helper: "Recommended: 2400 x 1000 or 2560 x 1080.",
+                preview: mediaPreview,
+                file: mediaFile,
+                isVideo: form.is_video,
+                mediaUrl: form.media_url,
+                onSelect: handleMediaSelect,
+                onRemove: handleRemoveMedia,
+              })}
+              {renderMediaField({
+                label: "Mobile Hero Media",
+                helper: "Recommended: 1080 x 1920. If empty, desktop media is used.",
+                preview: mobileMediaPreview,
+                file: mobileMediaFile,
+                isVideo: form.mobile_is_video,
+                mediaUrl: form.mobile_media_url,
+                onSelect: handleMobileMediaSelect,
+                onRemove: handleRemoveMobileMedia,
+              })}
             </div>
 
             {/* Active toggle */}

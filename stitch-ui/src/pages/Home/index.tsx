@@ -18,6 +18,8 @@ const defaultHero = {
   media_url:
     "https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=1600&q=80",
   is_video: false,
+  mobile_media_url: null,
+  mobile_is_video: false,
 };
 
 const categories = [
@@ -70,30 +72,42 @@ export default function Home() {
   }, []);
 
   const h = hero ?? defaultHero;
-  const heroMedia = h.media_url || defaultHero.media_url;
-  const heroIsVideo = hero ? h.is_video : false;
+  const desktopHeroMedia = h.media_url || defaultHero.media_url;
+  const desktopHeroIsVideo = hero ? h.is_video : false;
+  const mobileHeroMedia = hero?.mobile_media_url || desktopHeroMedia;
+  const mobileHeroIsVideo = hero?.mobile_media_url
+    ? hero.mobile_is_video
+    : desktopHeroIsVideo;
+
+  const renderHeroMedia = (
+    mediaUrl: string,
+    isVideo: boolean,
+    className: string,
+  ) =>
+    isVideo ? (
+      <video
+        src={mediaUrl}
+        autoPlay
+        muted
+        loop
+        playsInline
+        className={`${className} h-full w-full object-cover opacity-50`}
+      />
+    ) : (
+      <img
+        src={mediaUrl}
+        alt="Uphar hero"
+        className={`${className} h-full w-full object-cover opacity-50`}
+        referrerPolicy="no-referrer"
+      />
+    );
 
   return (
     <div>
       <section className="relative overflow-hidden bg-primary text-ivory">
         <div className="absolute inset-0">
-          {heroIsVideo && heroMedia ? (
-            <video
-              src={heroMedia}
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="h-full w-full object-cover opacity-50"
-            />
-          ) : (
-            <img
-              src={heroMedia}
-              alt="Uphar jewellery hero"
-              className="h-full w-full object-cover opacity-50"
-              referrerPolicy="no-referrer"
-            />
-          )}
+          {renderHeroMedia(mobileHeroMedia, mobileHeroIsVideo, "sm:hidden")}
+          {renderHeroMedia(desktopHeroMedia, desktopHeroIsVideo, "hidden sm:block")}
           <div className="absolute inset-0 bg-gradient-to-t from-[#003D3B]/70 via-[#003D3B]/40 to-transparent" />
         </div>
 

@@ -120,6 +120,8 @@ create table if not exists public.hero_content (
   cta_link text not null default '/shop',
   media_url text,
   is_video boolean not null default false,
+  mobile_media_url text,
+  mobile_is_video boolean not null default false,
   is_active boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
