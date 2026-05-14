@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 
 import Button from "../../components/Button";
+import PriceDisplay from "../../components/PriceDisplay";
 import { useStore } from "../../context/StoreContext";
 import { formatDate, formatPrice } from "../../lib/format";
 import { getProductTypeCopy } from "../../lib/productTypeLabels";
@@ -161,15 +162,21 @@ export default function OrderDetails() {
               const lineItemLabel = product
                 ? getProductTypeCopy(product.product_type).lineItemLabel
                 : "Variant";
+              const unitPrice = product?.variantPrices?.[item.size] ?? product?.price ?? 0;
+              const unitMrpPrice = product?.variantMrpPrices?.[item.size] ?? product?.mrpPrice ?? null;
+              const unitDiscountPercent = product?.variantDiscountPercents?.[item.size] ?? product?.discount_percent ?? null;
               return (
                 <div key={`${item.productId}-${item.size}`} className="flex items-center justify-between text-sm">
                   <div>
                     <p className="text-primary">{product?.name ?? "Product item"}</p>
                     <p className="text-muted">{lineItemLabel}: {item.size} x {item.quantity}</p>
                   </div>
-                  <span className="text-charcoal">
-                    {formatPrice((product?.price ?? 0) * item.quantity)}
-                  </span>
+                  <PriceDisplay
+                    price={unitPrice * item.quantity}
+                    mrpPrice={unitMrpPrice ? unitMrpPrice * item.quantity : null}
+                    discountPercent={unitDiscountPercent}
+                    size="compact"
+                  />
                 </div>
               );
             })

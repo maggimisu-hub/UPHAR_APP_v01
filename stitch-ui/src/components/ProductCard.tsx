@@ -2,14 +2,22 @@ import { Heart, ShoppingBag } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useStore } from "../context/StoreContext";
-import { formatTaxonomy, formatPrice } from "../lib/format";
+import { formatTaxonomy } from "../lib/format";
 import type { Product } from "../types";
+import PriceDisplay from "./PriceDisplay";
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart, toggleWishlist, wishlist } = useStore();
   const liked = wishlist.includes(product.id);
   const defaultSize = product.sizes[0];
   const defaultStock = defaultSize ? (product.variantStock?.[defaultSize] ?? 0) : 0;
+  const defaultPrice = defaultSize ? (product.variantPrices?.[defaultSize] ?? product.price) : product.price;
+  const defaultMrpPrice = defaultSize
+    ? (product.variantMrpPrices?.[defaultSize] ?? product.mrpPrice)
+    : product.mrpPrice;
+  const defaultDiscountPercent = defaultSize
+    ? (product.variantDiscountPercents?.[defaultSize] ?? product.discount_percent)
+    : product.discount_percent;
   const isOutOfStock = !defaultSize || defaultStock === 0;
   const isLowStock = !isOutOfStock && defaultStock <= 3;
 
@@ -39,7 +47,7 @@ export default function ProductCard({ product }: { product: Product }) {
           <p className={`text-sm ${isOutOfStock ? "text-primary" : isLowStock ? "text-accent" : "text-muted"}`}>
             {isOutOfStock ? "Out of stock" : isLowStock ? `Only ${defaultStock} left` : "Available for checkout"}
           </p>
-          <p className="pt-1 text-base font-bold text-accent">{formatPrice(product.price)}</p>
+          <PriceDisplay price={defaultPrice} mrpPrice={defaultMrpPrice} discountPercent={defaultDiscountPercent} />
         </div>
         <div className="flex gap-2">
           <button

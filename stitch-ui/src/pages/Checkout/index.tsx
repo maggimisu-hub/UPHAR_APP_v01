@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 
 import Button from "../../components/Button";
 import Input from "../../components/Input";
+import PriceDisplay from "../../components/PriceDisplay";
 import SectionTitle from "../../components/SectionTitle";
 import Textarea from "../../components/Textarea";
 import { useStore } from "../../context/StoreContext";
@@ -140,7 +141,12 @@ export default function Checkout() {
                     <p className="mt-1 text-[10px] font-bold text-accent uppercase tracking-tighter italic">Final Sale</p>
                   )}
                 </div>
-                <p className="text-primary">{formatPrice(line.lineTotal)}</p>
+                <PriceDisplay
+                  price={line.lineTotal}
+                  mrpPrice={line.unitMrpPrice ? line.unitMrpPrice * line.quantity : null}
+                  discountPercent={line.unitDiscountPercent}
+                  size="compact"
+                />
               </div>
             ))}
           </div>

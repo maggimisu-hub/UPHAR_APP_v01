@@ -5,6 +5,7 @@ export type Product = {
   id: string;
   name: string;
   price: number;
+  mrpPrice?: number | null;
   images: string[];
   media?: Array<{
     url: string;
@@ -19,6 +20,10 @@ export type Product = {
   description: string;
   tag: string;
   variantStock?: Record<string, number>;
+  variantPrices?: Record<string, number>;
+  variantMrpPrices?: Record<string, number | null>;
+  variantDiscountPercents?: Record<string, number | null>;
+  discount_percent?: number | null;
   featured?: boolean;
   newArrival?: boolean;
 };

@@ -14,6 +14,8 @@ type ProductVariantRow = {
   id: string;
   name: string;
   price: number;
+  mrp_price: number | null;
+  discount_percent: number | null;
   inventory: Array<{ stock: number }> | null;
 };
 
@@ -22,6 +24,8 @@ type ProductRow = {
   name: string;
   description: string | null;
   price: number;
+  mrp_price: number | null;
+  discount_percent: number | null;
   is_featured: boolean;
   is_new: boolean;
   product_images: ProductImageRow[] | null;
@@ -33,6 +37,8 @@ export type StorefrontProduct = {
   name: string;
   description: string | null;
   price: number;
+  mrpPrice: number | null;
+  discountPercent: number | null;
   isFeatured: boolean;
   isNew: boolean;
   product_type: string;
@@ -49,6 +55,8 @@ export type StorefrontProduct = {
     id: string;
     name: string;
     price: number;
+    mrpPrice: number | null;
+    discountPercent: number | null;
     stock: number;
   }>;
 };
@@ -61,6 +69,8 @@ export async function getAllProducts(): Promise<StorefrontProduct[]> {
       name,
       description,
       price,
+      mrp_price,
+      discount_percent,
       is_featured,
       is_new,
       product_type,
@@ -76,6 +86,8 @@ export async function getAllProducts(): Promise<StorefrontProduct[]> {
         id,
         name,
         price,
+        mrp_price,
+        discount_percent,
         inventory (
           stock
         )
@@ -95,6 +107,8 @@ export async function getAllProducts(): Promise<StorefrontProduct[]> {
       name: product.name,
       description: product.description,
       price: product.price,
+      mrpPrice: product.mrp_price,
+      discountPercent: product.discount_percent,
       isFeatured: product.is_featured,
       isNew: product.is_new,
       product_type: product.product_type,
@@ -117,6 +131,8 @@ export async function getAllProducts(): Promise<StorefrontProduct[]> {
           id: variant.id,
           name: variant.name,
           price: variant.price,
+          mrpPrice: variant.mrp_price,
+          discountPercent: variant.discount_percent,
           stock: stockVal ?? 0,
         };
       }),

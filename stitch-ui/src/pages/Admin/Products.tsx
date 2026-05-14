@@ -1,8 +1,17 @@
 import { useState, useEffect } from "react";
 import { formatPrice } from "../../lib/format";
+import { getPricingDetails } from "../../lib/pricing";
 import { getProductTypeCopy } from "../../lib/productTypeLabels";
 import { adminProductService, type AdminProduct, type AdminProductMedia } from "../../services/adminProductService";
 import type { ProductCollection, ProductType } from "../../types";
+
+type ProductFormVariant = {
+  id?: string;
+  name: string;
+  price: number;
+  mrp_price?: number | null | "";
+  discount_percent?: number | null | "";
+};
 
 export default function AdminProducts() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -16,14 +25,16 @@ export default function AdminProducts() {
     name: "",
     description: "",
     price: 0,
+    mrp_price: "" as number | "",
+    discount_percent: "" as number | "",
     is_active: true,
     is_featured: false,
     is_new: false,
-    product_type: "jewellery",
-    product_collection: "none",
+    product_type: "jewellery" as ProductType,
+    product_collection: "none" as ProductCollection,
     is_returnable: true,
     return_policy_note: "",
-    variants: [] as { id?: string; name: string; price: number }[],
+    variants: [] as ProductFormVariant[],
     media: [] as { id?: string; image_url: string; is_video: boolean; display_order: number; file?: File }[],
   });
   const [submitting, setSubmitting] = useState(false);
@@ -52,6 +63,8 @@ export default function AdminProducts() {
         name: product.name,
         description: product.description || "",
         price: product.price,
+        mrp_price: product.mrp_price ?? "",
+        discount_percent: product.discount_percent ?? "",
         is_active: product.is_active,
         is_featured: product.is_featured,
         is_new: product.is_new,
@@ -59,7 +72,11 @@ export default function AdminProducts() {
         product_collection: (product.product_collection || "none") as ProductCollection,
         is_returnable: product.is_returnable,
         return_policy_note: product.return_policy_note || "",
-        variants: [...product.variants],
+        variants: product.variants.map((variant) => ({
+          ...variant,
+          mrp_price: variant.mrp_price ?? "",
+          discount_percent: variant.discount_percent ?? "",
+        })),
         media: product.media ? product.media.map(m => ({ ...m })) : [],
       });
     } else {
@@ -68,6 +85,8 @@ export default function AdminProducts() {
         name: "",
         description: "",
         price: 0,
+        mrp_price: "",
+        discount_percent: "",
         is_active: true,
         is_featured: false,
         is_new: false,
@@ -75,7 +94,7 @@ export default function AdminProducts() {
         product_collection: "none" as ProductCollection,
         is_returnable: true,
         return_policy_note: "",
-        variants: [{ name: "", price: 0 }],
+        variants: [{ name: "", price: 0, mrp_price: "", discount_percent: "" }],
         media: [],
       });
     }
@@ -91,7 +110,7 @@ export default function AdminProducts() {
   const addVariant = () => {
     setFormData((prev) => ({
       ...prev,
-      variants: [...prev.variants, { name: "", price: prev.price }],
+      variants: [...prev.variants, { name: "", price: prev.price, mrp_price: prev.mrp_price, discount_percent: prev.discount_percent }],
     }));
   };
 
@@ -102,10 +121,80 @@ export default function AdminProducts() {
     }));
   };
 
-  const updateVariant = (index: number, field: string, value: string | number) => {
+  // Helper to calculate price from MRP and Discount
+  const calculatePrice = (mrp: number, discount: number) => {
+    if (!mrp) return 0;
+    const finalPrice = mrp * (1 - discount / 100);
+    return Math.round(finalPrice * 100) / 100; // Round to 2 decimals
+  };
+
+  // Helper to calculate discount from MRP and Price
+  const calculateDiscount = (mrp: number, price: number) => {
+    if (!mrp || !price || price >= mrp) return 0;
+    const discount = ((mrp - price) / mrp) * 100;
+    return Math.round(discount * 100) / 100; // Round to 2 decimals
+  };
+
+  const updateFormDataField = (field: string, value: any) => {
+    setFormData((prev) => {
+      let newState = { ...prev, [field]: value };
+
+      // Auto-calculation logic for main product
+      if (field === "mrp_price") {
+        const mrp = value === "" ? 0 : parseFloat(value) || 0;
+        const discount = prev.discount_percent === "" ? 0 : parseFloat(prev.discount_percent as any) || 0;
+        if (mrp > 0 && discount > 0) {
+          newState.price = calculatePrice(mrp, discount);
+        } else if (mrp > 0 && prev.price > 0 && prev.price < mrp) {
+          newState.discount_percent = calculateDiscount(mrp, prev.price);
+        }
+      } else if (field === "discount_percent") {
+        const discount = value === "" ? 0 : parseFloat(value) || 0;
+        const mrp = prev.mrp_price === "" ? 0 : parseFloat(prev.mrp_price as any) || 0;
+        if (mrp > 0) {
+          newState.price = calculatePrice(mrp, discount);
+        }
+      } else if (field === "price") {
+        const price = value === "" ? 0 : parseFloat(value) || 0;
+        const mrp = prev.mrp_price === "" ? 0 : parseFloat(prev.mrp_price as any) || 0;
+        if (mrp > price && mrp > 0) {
+          newState.discount_percent = calculateDiscount(mrp, price);
+        }
+      }
+
+      return newState;
+    });
+  };
+
+  const updateVariant = (index: number, field: string, value: any) => {
     setFormData((prev) => {
       const newVariants = [...prev.variants];
-      newVariants[index] = { ...newVariants[index], [field]: value };
+      const variant = { ...newVariants[index], [field]: value };
+
+      // Auto-calculation logic for variants
+      if (field === "mrp_price") {
+        const mrp = value === "" ? 0 : parseFloat(value) || 0;
+        const discount = variant.discount_percent === "" ? 0 : parseFloat(variant.discount_percent as any) || 0;
+        if (mrp > 0 && discount > 0) {
+          variant.price = calculatePrice(mrp, discount);
+        } else if (mrp > 0 && variant.price > 0 && variant.price < mrp) {
+          variant.discount_percent = calculateDiscount(mrp, variant.price);
+        }
+      } else if (field === "discount_percent") {
+        const discount = value === "" ? 0 : parseFloat(value) || 0;
+        const mrp = variant.mrp_price === "" ? 0 : parseFloat(variant.mrp_price as any) || 0;
+        if (mrp > 0) {
+          variant.price = calculatePrice(mrp, discount);
+        }
+      } else if (field === "price") {
+        const price = value === "" ? 0 : parseFloat(value) || 0;
+        const mrp = variant.mrp_price === "" ? 0 : parseFloat(variant.mrp_price as any) || 0;
+        if (mrp > price && mrp > 0) {
+          variant.discount_percent = calculateDiscount(mrp, price);
+        }
+      }
+
+      newVariants[index] = variant;
       return { ...prev, variants: newVariants };
     });
   };
@@ -186,6 +275,14 @@ export default function AdminProducts() {
         setError("Variant names cannot be empty.");
         return;
       }
+      if (v.mrp_price !== "" && v.mrp_price != null && v.mrp_price < v.price) {
+        setError("Variant MRP cannot be lower than the sale price.");
+        return;
+      }
+    }
+    if (formData.mrp_price !== "" && formData.mrp_price < formData.price) {
+      setError("MRP cannot be lower than the sale price.");
+      return;
     }
 
     try {
@@ -207,6 +304,8 @@ export default function AdminProducts() {
         name: formData.name,
         description: formData.description,
         price: formData.price,
+        mrp_price: formData.mrp_price === "" ? null : formData.mrp_price,
+        discount_percent: formData.discount_percent === "" ? null : formData.discount_percent,
         is_active: formData.is_active,
         is_featured: formData.is_featured,
         is_new: formData.is_new,
@@ -220,13 +319,21 @@ export default function AdminProducts() {
         await adminProductService.updateAdminProduct(
           editingProduct.id,
           productPayload,
-          formData.variants,
+          formData.variants.map((variant) => ({
+            ...variant,
+            mrp_price: variant.mrp_price === "" ? null : variant.mrp_price,
+            discount_percent: variant.discount_percent === "" ? null : variant.discount_percent,
+          })),
           finalMedia as Array<Omit<AdminProductMedia, "id"> & { id?: string }>
         );
       } else {
         await adminProductService.createAdminProduct(
           productPayload,
-          formData.variants,
+          formData.variants.map((variant) => ({
+            ...variant,
+            mrp_price: variant.mrp_price === "" ? null : variant.mrp_price,
+            discount_percent: variant.discount_percent === "" ? null : variant.discount_percent,
+          })),
           finalMedia as Array<Omit<AdminProductMedia, "id"> & { id?: string }>
         );
       }
@@ -246,6 +353,8 @@ export default function AdminProducts() {
         name: product.name,
         description: product.description,
         price: product.price,
+        mrp_price: product.mrp_price,
+        discount_percent: product.discount_percent,
         is_active: !product.is_active,
         is_featured: product.is_featured,
         is_new: product.is_new,
@@ -262,6 +371,11 @@ export default function AdminProducts() {
   };
 
   const variantPlaceholder = getProductTypeCopy(formData.product_type as ProductType).variantPlaceholder;
+  const productPricingPreview = getPricingDetails(
+    formData.price,
+    formData.mrp_price === "" ? null : formData.mrp_price,
+    formData.discount_percent === "" ? null : formData.discount_percent
+  );
 
   if (loading && products.length === 0) {
     return <div className="p-5 text-sm text-muted">Loading products...</div>;
@@ -372,18 +486,79 @@ export default function AdminProducts() {
                   />
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-muted mb-1">MRP (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.mrp_price}
+                      onChange={(e) => updateFormDataField("mrp_price", e.target.value === "" ? "" : e.target.value)}
+                      className="w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-2 pt-1 text-sm text-primary placeholder:text-muted/50 focus:border-primary focus:outline-none focus:ring-0"
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted mb-1">Discount (%)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="90"
+                      step="0.1"
+                      value={formData.discount_percent}
+                      onChange={(e) => updateFormDataField("discount_percent", e.target.value === "" ? "" : e.target.value)}
+                      className="w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-2 pt-1 text-sm text-primary placeholder:text-muted/50 focus:border-primary focus:outline-none focus:ring-0"
+                      placeholder="e.g. 25"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-xs text-muted mb-1">Base Price (₹)</label>
+                  <label className="block text-xs text-muted mb-1">Sale Price / Final Price (₹)</label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
                     required
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-                    className="w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-2 pt-1 text-sm text-primary placeholder:text-muted/50 focus:border-primary focus:outline-none focus:ring-0"
+                    onChange={(e) => updateFormDataField("price", e.target.value === "" ? 0 : e.target.value)}
+                    readOnly={Boolean(formData.mrp_price && formData.discount_percent)}
+                    className={`w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-2 pt-1 text-sm text-primary placeholder:text-muted/50 focus:border-primary focus:outline-none focus:ring-0 ${Boolean(formData.mrp_price && formData.discount_percent) ? 'opacity-60 cursor-not-allowed' : ''}`}
                   />
+                  {formData.mrp_price && formData.discount_percent ? (
+                    <p className="mt-2 text-[10px] text-muted italic">
+                      Auto-calculated from MRP and Discount. Clear either field to edit manually.
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-[10px] text-muted italic">
+                      Tip: Enter MRP and Discount % to auto-calculate Sale Price.
+                    </p>
+                  )}
                 </div>
+
+                {/* Live Pricing Preview */}
+                {productPricingPreview.hasDiscount && (
+                  <div className="rounded-[12px] border border-accent/20 bg-accent/5 p-3">
+                    <p className="text-[10px] uppercase tracking-wider text-muted mb-2">Storefront Preview</p>
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-base font-bold text-primary">{formatPrice(formData.price)}</span>
+                      {productPricingPreview.mrpPrice && (
+                        <span className="text-sm text-muted">
+                          MRP <span className="line-through">{formatPrice(productPricingPreview.mrpPrice)}</span>
+                        </span>
+                      )}
+                      <span className="rounded-sm bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
+                        {productPricingPreview.discountPercent}% OFF
+                      </span>
+                    </div>
+                    {productPricingPreview.savings > 0 && (
+                      <p className="mt-1 text-xs text-accent">
+                        You save {formatPrice(productPricingPreview.savings)} ({productPricingPreview.discountPercent}% OFF)
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs text-muted mb-1">Description (Supports multiple lines)</label>
@@ -491,7 +666,7 @@ export default function AdminProducts() {
                   </button>
                 </div>
                 <p className="text-xs text-muted">
-                  Examples only. You can enter any label required for this product.
+                  Set specific MRP and Discount % per variant.
                 </p>
 
                 <div className="space-y-3">
@@ -508,18 +683,70 @@ export default function AdminProducts() {
                             className="w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-1 text-sm text-primary focus:border-primary focus:outline-none"
                           />
                         </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] text-muted uppercase">MRP (₹)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="MRP"
+                              value={variant.mrp_price ?? ""}
+                              onChange={(e) => updateVariant(index, "mrp_price", e.target.value === "" ? "" : e.target.value)}
+                              className="w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-1 text-sm text-primary focus:border-primary focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-muted uppercase">Discount (%)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="90"
+                              step="0.1"
+                              placeholder="%"
+                              value={variant.discount_percent ?? ""}
+                              onChange={(e) => updateVariant(index, "discount_percent", e.target.value === "" ? "" : e.target.value)}
+                              className="w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-1 text-sm text-primary focus:border-primary focus:outline-none"
+                            />
+                          </div>
+                        </div>
                         <div>
+                          <label className="block text-[10px] text-muted uppercase">Sale Price (₹)</label>
                           <input
                             type="number"
                             min="0"
                             step="0.01"
                             required
-                            placeholder="Variant Price (₹)"
+                            placeholder="Sale price"
                             value={variant.price}
-                            onChange={(e) => updateVariant(index, "price", parseFloat(e.target.value) || 0)}
-                            className="w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-1 text-sm text-primary focus:border-primary focus:outline-none"
+                            onChange={(e) => updateVariant(index, "price", e.target.value === "" ? 0 : e.target.value)}
+                            readOnly={Boolean(variant.mrp_price && variant.discount_percent)}
+                            className={`w-full rounded-none border-b border-primary/20 bg-transparent px-0 pb-1 text-sm text-primary focus:border-primary focus:outline-none ${Boolean(variant.mrp_price && variant.discount_percent) ? 'opacity-60 cursor-not-allowed' : ''}`}
                           />
                         </div>
+                        {/* Variant pricing preview */}
+                        {(() => {
+                          const vPreview = getPricingDetails(
+                            variant.price,
+                            variant.mrp_price === "" ? null : (variant.mrp_price as number | null),
+                            variant.discount_percent === "" ? null : (variant.discount_percent as number | null)
+                          );
+                          return vPreview.hasDiscount ? (
+                            <div className="rounded-lg bg-accent/5 px-2 py-1.5">
+                              <div className="flex flex-wrap items-baseline gap-1.5">
+                                <span className="text-xs font-bold text-primary">{formatPrice(variant.price)}</span>
+                                {vPreview.mrpPrice && (
+                                  <span className="text-[10px] text-muted">
+                                    MRP <span className="line-through">{formatPrice(vPreview.mrpPrice)}</span>
+                                  </span>
+                                )}
+                                <span className="rounded-sm bg-accent/10 px-1 py-0.5 text-[9px] font-semibold text-accent">
+                                  {vPreview.discountPercent}% OFF
+                                </span>
+                              </div>
+                            </div>
+                          ) : null;
+                        })()}
                       </div>
                       {formData.variants.length > 1 && (
                         <button

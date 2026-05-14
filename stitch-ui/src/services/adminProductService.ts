@@ -22,6 +22,8 @@ export type AdminProductVariant = {
   id: string;
   name: string;
   price: number;
+  mrp_price: number | null;
+  discount_percent: number | null;
 };
 
 export type AdminProductMedia = {
@@ -36,6 +38,8 @@ export type AdminProduct = {
   name: string;
   description: string | null;
   price: number;
+  mrp_price: number | null;
+  discount_percent: number | null;
   is_active: boolean;
   is_featured: boolean;
   is_new: boolean;
@@ -55,6 +59,8 @@ export async function getAdminProducts(): Promise<AdminProduct[]> {
       name,
       description,
       price,
+      mrp_price,
+      discount_percent,
       is_active,
       is_featured,
       is_new,
@@ -65,7 +71,9 @@ export async function getAdminProducts(): Promise<AdminProduct[]> {
       product_variants (
         id,
         name,
-        price
+        price,
+        mrp_price,
+        discount_percent
       ),
       product_images (
         id,
@@ -85,6 +93,8 @@ export async function getAdminProducts(): Promise<AdminProduct[]> {
     name: product.name,
     description: product.description,
     price: product.price,
+    mrp_price: product.mrp_price,
+    discount_percent: product.discount_percent,
     is_active: product.is_active,
     is_featured: product.is_featured,
     is_new: product.is_new,
@@ -96,6 +106,8 @@ export async function getAdminProducts(): Promise<AdminProduct[]> {
       id: variant.id,
       name: variant.name,
       price: variant.price,
+      mrp_price: variant.mrp_price,
+      discount_percent: variant.discount_percent,
     })).sort((a: any, b: any) => a.name.localeCompare(b.name)),
     media: (product.product_images ?? []).map((m: any) => ({
       id: m.id,
@@ -128,6 +140,8 @@ export async function createAdminProduct(
       product_id: product.id,
       name: v.name,
       price: v.price,
+      mrp_price: v.mrp_price ?? null,
+      discount_percent: v.discount_percent ?? null,
     }));
     const { data: insertedVariants, error: variantsError } = await supabase
       .from("product_variants")
@@ -211,13 +225,24 @@ export async function updateAdminProduct(
     if (variant.id) {
       const { error: updateError } = await supabase
         .from("product_variants")
-        .update({ name: variant.name, price: variant.price })
+        .update({
+          name: variant.name,
+          price: variant.price,
+          mrp_price: variant.mrp_price ?? null,
+          discount_percent: variant.discount_percent ?? null,
+        })
         .eq("id", variant.id);
       if (updateError) throw new Error(`Failed to update variant: ${updateError.message}`);
     } else {
       const { data: insertedVariant, error: insertError } = await supabase
         .from("product_variants")
-        .insert([{ product_id: id, name: variant.name, price: variant.price }])
+        .insert([{
+          product_id: id,
+          name: variant.name,
+          price: variant.price,
+          mrp_price: variant.mrp_price ?? null,
+          discount_percent: variant.discount_percent ?? null,
+        }])
         .select()
         .single();
       if (insertError) throw new Error(`Failed to insert variant: ${insertError.message}`);

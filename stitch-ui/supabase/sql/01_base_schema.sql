@@ -13,6 +13,8 @@ create table if not exists public.products (
   name text not null,
   description text,
   price numeric(12,2) not null check (price >= 0),
+  mrp_price numeric(12,2) check (mrp_price is null or mrp_price >= price),
+  discount_percent numeric(5,2) check (discount_percent is null or (discount_percent >= 0 and discount_percent <= 90)),
   is_featured boolean not null default false,
   is_new boolean not null default false,
   is_active boolean not null default true,
@@ -30,6 +32,8 @@ create table if not exists public.product_variants (
   product_id uuid not null references public.products(id) on delete cascade,
   name text not null,
   price numeric(12,2) not null check (price >= 0),
+  mrp_price numeric(12,2) check (mrp_price is null or mrp_price >= price),
+  discount_percent numeric(5,2) check (discount_percent is null or (discount_percent >= 0 and discount_percent <= 90)),
   created_at timestamptz not null default now(),
   unique (product_id, name)
 );

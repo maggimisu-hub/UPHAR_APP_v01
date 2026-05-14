@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useStore } from "../context/StoreContext";
-import { formatPrice } from "../lib/format";
 import { getProductTypeCopy } from "../lib/productTypeLabels";
 import type { Product } from "../types";
 import Button from "./Button";
+import PriceDisplay from "./PriceDisplay";
 
 export default function ProductPurchasePanel({ product }: { product: Product }) {
   const navigate = useNavigate();
@@ -13,12 +13,29 @@ export default function ProductPurchasePanel({ product }: { product: Product }) 
   const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
   const [added, setAdded] = useState(false);
   const productCopy = getProductTypeCopy(product.product_type);
+  const selectedPrice = selectedSize
+    ? (product.variantPrices?.[selectedSize] ?? product.price)
+    : product.price;
+  const selectedMrpPrice = selectedSize
+    ? (product.variantMrpPrices?.[selectedSize] ?? product.mrpPrice)
+    : product.mrpPrice;
+  const selectedDiscountPercent = selectedSize
+    ? (product.variantDiscountPercents?.[selectedSize] ?? product.discount_percent)
+    : product.discount_percent;
 
   return (
     <div className="rounded-sm border border-primary/10 bg-ivory p-6 sm:p-8">
       <p className="text-[11px] uppercase tracking-[0.3em] text-charcoal/70">{product.tag}</p>
       <h1 className="mt-4 text-[1.375rem] font-semibold leading-[1.25] text-primary sm:text-[1.75rem]">{product.name}</h1>
-      <p className="mt-4 text-[18px] font-bold text-accent">{formatPrice(product.price)}</p>
+      <div className="mt-4">
+        <PriceDisplay
+          price={selectedPrice}
+          mrpPrice={selectedMrpPrice}
+          discountPercent={selectedDiscountPercent}
+          size="detail"
+          showSavings
+        />
+      </div>
       <p className="mt-6 text-sm leading-6 text-muted">{product.description}</p>
 
       {/* Return Policy */}

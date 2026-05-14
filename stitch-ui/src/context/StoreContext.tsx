@@ -32,7 +32,16 @@ type StoreContextValue = {
   cartCount: number;
   wishlistCount: number;
   cartSubtotal: number;
-  cartDetailed: Array<{ product: Product; size: string; quantity: number; lineTotal: number; availableStock: number }>;
+  cartDetailed: Array<{
+    product: Product;
+    size: string;
+    quantity: number;
+    unitPrice: number;
+    unitMrpPrice: number | null;
+    unitDiscountPercent: number | null;
+    lineTotal: number;
+    availableStock: number;
+  }>;
   lastAdjustmentMessage: string | null;
   userId: string | null;
   isUserAuthenticated: boolean;
@@ -150,6 +159,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           id: p.id,
           name: p.name,
           price: p.price,
+          mrpPrice: p.mrpPrice,
+          discount_percent: p.discountPercent,
           images: p.images,
           media: p.media,
           product_type: p.product_type as ProductType,
@@ -160,6 +171,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           description: p.description || "",
           tag: p.isFeatured ? "Featured" : p.isNew ? "New Arrival" : "Signature",
           variantStock: p.variants.reduce((acc, v) => ({ ...acc, [v.name]: v.stock }), {}),
+          variantPrices: p.variants.reduce((acc, v) => ({ ...acc, [v.name]: v.price }), {}),
+          variantMrpPrices: p.variants.reduce(
+            (acc, v) => ({ ...acc, [v.name]: v.mrpPrice }),
+            {},
+          ),
+          variantDiscountPercents: p.variants.reduce(
+            (acc, v) => ({ ...acc, [v.name]: v.discountPercent }),
+            {},
+          ),
           featured: p.isFeatured,
           newArrival: p.isNew,
         }));
@@ -211,12 +231,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return [];
         }
 
+        const unitPrice = product.variantPrices?.[item.size] ?? product.price;
+        const unitMrpPrice = product.variantMrpPrices?.[item.size] ?? product.mrpPrice ?? null;
+        const unitDiscountPercent = product.variantDiscountPercents?.[item.size] ?? product.discount_percent ?? null;
+
         return [
           {
             product,
             size: item.size,
             quantity: item.quantity,
-            lineTotal: item.quantity * product.price,
+            unitPrice,
+            unitMrpPrice,
+            unitDiscountPercent,
+            lineTotal: item.quantity * unitPrice,
             availableStock: product.variantStock?.[item.size] ?? 0,
           },
         ];
@@ -354,14 +381,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     );
 
     const shippingCost = 0;
+    const orderSubtotal = Number(result.totalAmount);
 
     const order: Order = {
       id: result.orderId,
       items: cart,
       shipping: shippingDetails,
-      subtotal: cartSubtotal,
+      subtotal: orderSubtotal,
       shippingCost,
-      total: cartSubtotal + shippingCost,
+      total: orderSubtotal + shippingCost,
       orderStatus: "pending",
       paymentStatus: "cod",
       createdAt: new Date().toISOString(),

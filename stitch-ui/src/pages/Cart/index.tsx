@@ -1,4 +1,5 @@
 import Button from "../../components/Button";
+import PriceDisplay from "../../components/PriceDisplay";
 import SectionTitle from "../../components/SectionTitle";
 import { useStore } from "../../context/StoreContext";
 import { formatPrice } from "../../lib/format";
@@ -61,7 +62,14 @@ export default function Cart() {
                         {getProductTypeCopy(line.product.product_type).lineItemLabel}: {line.size}
                       </p>
                     </div>
-                    <p className="text-sm text-primary">{formatPrice(line.lineTotal)}</p>
+                    <div className="text-right">
+                      <PriceDisplay
+                        price={line.lineTotal}
+                        mrpPrice={line.unitMrpPrice ? line.unitMrpPrice * line.quantity : null}
+                        discountPercent={line.unitDiscountPercent}
+                        size="compact"
+                      />
+                    </div>
                   </div>
                   <p className="mt-4 max-w-lg text-sm leading-7 text-muted">{line.product.description}</p>
                   
