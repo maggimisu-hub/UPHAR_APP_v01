@@ -17,22 +17,33 @@ export default function AdminLayout() {
 
   useEffect(() => {
     if (authLoading) return;
-    
+
+    let cancelled = false;
+    setRoleLoading(true);
+
     if (!isUserAuthenticated) {
-      setRoleLoading(false);
       setIsAdmin(false);
-      return;
+      setRoleLoading(false);
+      return () => {
+        cancelled = true;
+      };
     }
 
     getCurrentUser()
       .then((user) => {
+        if (cancelled) return;
         setIsAdmin(user?.role === "admin");
         setRoleLoading(false);
       })
       .catch(() => {
+        if (cancelled) return;
         setIsAdmin(false);
         setRoleLoading(false);
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [isUserAuthenticated, authLoading]);
 
   if (authLoading || roleLoading) {

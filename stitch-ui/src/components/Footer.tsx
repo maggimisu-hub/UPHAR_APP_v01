@@ -33,7 +33,6 @@ const columns = [
       { label: "Account", to: "/account" },
       { label: "Saved pieces", to: "/wishlist" },
       { label: "Try-on", to: "/try-on" },
-      { label: "Admin", to: "/admin" },
     ],
   },
 ];
