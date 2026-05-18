@@ -1,5 +1,5 @@
-import { Heart, Search, ShoppingBag, User } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Heart, LogOut, Search, ShoppingBag, User } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import BrandLogo from "./BrandLogo";
@@ -17,9 +17,52 @@ const navLinks = [
 
 export default function Navbar() {
   const location = useLocation();
-  const { cartCount, wishlistCount, searchProducts } = useStore();
+  const { authLoading, cartCount, isUserAuthenticated, signOut, wishlistCount, searchProducts } = useStore();
   const [query, setQuery] = useState("");
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const results = useMemo(() => searchProducts(query).slice(0, 4), [query, searchProducts]);
+
+  useEffect(() => {
+    setAccountMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [accountMenuOpen]);
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+
+    try {
+      setSigningOut(true);
+      await signOut();
+      setAccountMenuOpen(false);
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-accent/30 bg-primary">
@@ -83,12 +126,51 @@ export default function Navbar() {
               </span>
             ) : null}
           </Link>
-          <Link
-            to="/account"
-            className="flex h-10 w-10 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#B76E79] transition-colors duration-200 hover:text-white"
-          >
-            <User className="h-4 w-4 text-[#B76E79]" />
-          </Link>
+          <div ref={accountMenuRef} className="relative">
+            {isUserAuthenticated ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setAccountMenuOpen((current) => !current)}
+                  disabled={authLoading}
+                  aria-expanded={accountMenuOpen}
+                  aria-label="Account menu"
+                  className="flex h-10 w-10 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#B76E79] transition-colors duration-200 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <User className="h-4 w-4 text-[#B76E79]" />
+                </button>
+
+                {accountMenuOpen && (
+                  <div className="absolute right-0 top-12 z-50 w-48 rounded-sm border border-primary/15 bg-ivory p-2 text-sm shadow-xl shadow-black/15">
+                    <Link
+                      to="/account"
+                      className="flex items-center gap-3 rounded-sm px-3 py-3 text-primary transition hover:bg-background-light hover:text-accent"
+                    >
+                      <User className="h-4 w-4" />
+                      Account
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      disabled={signingOut}
+                      className="flex w-full items-center gap-3 rounded-sm px-3 py-3 text-left text-primary transition hover:bg-background-light hover:text-accent disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      {signingOut ? "Signing out..." : "Sign out"}
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <Link
+                to="/account"
+                className="flex h-10 w-10 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#B76E79] transition-colors duration-200 hover:text-white"
+                aria-label="Account"
+              >
+                <User className="h-4 w-4 text-[#B76E79]" />
+              </Link>
+            )}
+          </div>
           <Link
             to="/cart"
             className="relative flex h-10 w-10 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#B76E79] transition-colors duration-200 hover:text-white"
