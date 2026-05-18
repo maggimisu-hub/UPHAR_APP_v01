@@ -18,6 +18,48 @@ export async function signInWithEmail(email: string, password: string) {
   return data;
 }
 
+export async function sendEmailOtp(email: string) {
+  const redirectTo =
+    typeof window !== "undefined" ? `${window.location.origin}/account` : undefined;
+
+  const { data, error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: redirectTo,
+      shouldCreateUser: true,
+    },
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function verifyEmailOtp(email: string, token: string) {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: "email",
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function signInWithGoogle() {
+  const redirectTo =
+    typeof window !== "undefined" ? `${window.location.origin}/account` : undefined;
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo,
+    },
+  });
+
+  if (error) throw error;
+  return data;
+}
+
 export async function signUpWithEmail(email: string, password: string) {
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw error;

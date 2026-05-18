@@ -11,7 +11,15 @@ import {
 import { supabase } from "../lib/supabaseClient";
 import { productService } from "../services/productService";
 import { orderService } from "../services/orderService";
-import { getCurrentUser, signInWithEmail, signUpWithEmail, signOutCurrentUser } from "../services/authService";
+import {
+  getCurrentUser,
+  sendEmailOtp,
+  signInWithEmail,
+  signInWithGoogle,
+  signOutCurrentUser,
+  signUpWithEmail,
+  verifyEmailOtp,
+} from "../services/authService";
 import type { Address, CartItem, CheckoutFormValues, Order, Product, ProductType, ProductCollection } from "../types";
 
 const STORAGE_KEY = "stitch-ui-store";
@@ -48,6 +56,9 @@ type StoreContextValue = {
   authLoading: boolean;
   productsLoading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
+  sendEmailOtp: (email: string) => Promise<void>;
+  verifyEmailOtp: (email: string, token: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<{ session: any; user: any }>;
   signOut: () => Promise<void>;
   addToCart: (productId: string, size: string, quantity?: number) => void;
@@ -261,6 +272,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setUserId(user?.id ?? null);
   };
 
+  const sendOtp = async (email: string) => {
+    await sendEmailOtp(email);
+  };
+
+  const verifyOtp = async (email: string, token: string) => {
+    await verifyEmailOtp(email, token);
+    const user = await getCurrentUser();
+    setUserId(user?.id ?? null);
+  };
+
+  const googleSignIn = async () => {
+    await signInWithGoogle();
+  };
+
   const signUp = async (email: string, password: string) => {
     const data = await signUpWithEmail(email, password);
     if (data.session) {
@@ -465,6 +490,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         authLoading,
         productsLoading,
         signInWithEmail: signIn,
+        sendEmailOtp: sendOtp,
+        verifyEmailOtp: verifyOtp,
+        signInWithGoogle: googleSignIn,
         signUpWithEmail: signUp,
         signOut,
         addToCart,
