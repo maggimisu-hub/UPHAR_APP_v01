@@ -53,6 +53,7 @@ type StoreContextValue = {
   lastAdjustmentMessage: string | null;
   userId: string | null;
   isUserAuthenticated: boolean;
+  isAdmin: boolean;
   authLoading: boolean;
   productsLoading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -130,6 +131,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     );
   }, [addresses, cart, hydrated, orders, wishlist]);
 
+  const [isAdmin, setIsAdmin] = useState(false);
+
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | null = null;
 
@@ -137,18 +140,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       try {
         const currentUser = await getCurrentUser();
         setUserId(currentUser?.id ?? null);
+        setIsAdmin(currentUser?.role === "admin");
         setAuthLoading(false);
 
-        const authSubscription = supabase.auth.onAuthStateChange((_, session) => {
+        const authSubscription = supabase.auth.onAuthStateChange(async (_, session) => {
           if (session?.user?.id) {
             setUserId(session.user.id);
+            // Re-fetch user role on auth state change
+            const user = await getCurrentUser();
+            setIsAdmin(user?.role === "admin");
           } else {
             setUserId(null);
+            setIsAdmin(false);
           }
         });
         subscription = authSubscription.data.subscription;
       } catch {
         setUserId(null);
+        setIsAdmin(false);
         setAuthLoading(false);
       }
     };
@@ -487,6 +496,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         lastAdjustmentMessage,
         userId,
         isUserAuthenticated,
+        isAdmin,
         authLoading,
         productsLoading,
         signInWithEmail: signIn,

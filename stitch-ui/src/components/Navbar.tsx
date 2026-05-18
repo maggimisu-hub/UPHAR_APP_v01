@@ -1,4 +1,4 @@
-import { Heart, LogOut, Search, ShoppingBag, User } from "lucide-react";
+import { Heart, LogOut, Search, ShoppingBag, User, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -17,7 +17,7 @@ const navLinks = [
 
 export default function Navbar() {
   const location = useLocation();
-  const { authLoading, cartCount, isUserAuthenticated, signOut, wishlistCount, searchProducts } = useStore();
+  const { authLoading, cartCount, isUserAuthenticated, signOut, wishlistCount, searchProducts, isAdmin } = useStore();
   const [query, setQuery] = useState("");
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -142,6 +142,15 @@ export default function Navbar() {
 
                 {accountMenuOpen && (
                   <div className="absolute right-0 top-12 z-50 w-48 rounded-sm border border-primary/15 bg-ivory p-2 text-sm shadow-xl shadow-black/15">
+                    {isAdmin && (
+                      <Link
+                        to="/admin"
+                        className="flex items-center gap-3 rounded-sm px-3 py-3 text-primary transition hover:bg-background-light hover:text-accent"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        Admin Dashboard
+                      </Link>
+                    )}
                     <Link
                       to="/account"
                       className="flex items-center gap-3 rounded-sm px-3 py-3 text-primary transition hover:bg-background-light hover:text-accent"
