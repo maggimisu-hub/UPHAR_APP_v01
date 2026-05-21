@@ -79,6 +79,13 @@ to authenticated
 using (public.is_admin())
 with check (public.is_admin());
 
+drop policy if exists "products_admin_delete" on public.products;
+create policy "products_admin_delete"
+on public.products
+for delete
+to authenticated
+using (public.is_admin());
+
 drop policy if exists "variants_public_select" on public.product_variants;
 create policy "variants_public_select"
 on public.product_variants
