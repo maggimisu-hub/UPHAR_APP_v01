@@ -17,6 +17,8 @@ export default function AdminProducts() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openDeleteMenuId, setOpenDeleteMenuId] = useState<string | null>(null);
+  const [busyProductId, setBusyProductId] = useState<string | null>(null);
 
   // Form State
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -349,6 +351,7 @@ export default function AdminProducts() {
 
   const toggleActive = async (product: AdminProduct) => {
     try {
+      setBusyProductId(product.id);
       const productPayload = {
         name: product.name,
         description: product.description,
@@ -367,6 +370,44 @@ export default function AdminProducts() {
       await loadProducts();
     } catch (err: any) {
       alert("Failed to toggle status: " + err.message);
+    } finally {
+      setBusyProductId(null);
+    }
+  };
+
+  const handleSoftDelete = async (product: AdminProduct) => {
+    const confirmed = window.confirm(
+      `Soft delete "${product.name}"?\n\nThis will hide it from the live storefront but keep it in admin.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setBusyProductId(product.id);
+      setOpenDeleteMenuId(null);
+      await adminProductService.softDeleteAdminProduct(product.id);
+      await loadProducts();
+    } catch (err: any) {
+      alert("Failed to soft delete product: " + err.message);
+    } finally {
+      setBusyProductId(null);
+    }
+  };
+
+  const handleHardDelete = async (product: AdminProduct) => {
+    const confirmed = window.confirm(
+      `Hard delete "${product.name}" permanently?\n\nThis removes the product, variants, and media. This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setBusyProductId(product.id);
+      setOpenDeleteMenuId(null);
+      await adminProductService.hardDeleteAdminProduct(product.id);
+      await loadProducts();
+    } catch (err: any) {
+      alert("Failed to hard delete product: " + err.message);
+    } finally {
+      setBusyProductId(null);
     }
   };
 
@@ -433,16 +474,48 @@ export default function AdminProducts() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => toggleActive(product)}
-                      className="px-3 py-1.5 text-xs border border-primary/20 rounded-full hover:bg-primary/5 transition-colors"
+                      disabled={busyProductId === product.id}
+                      className="px-3 py-1.5 text-xs border border-primary/20 rounded-full hover:bg-primary/5 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {product.is_active ? "Disable" : "Enable"}
+                      {busyProductId === product.id ? "Saving..." : product.is_active ? "Disable" : "Enable"}
                     </button>
                     <button
                       onClick={() => openForm(product)}
+                      disabled={busyProductId === product.id}
                       className="px-3 py-1.5 text-xs bg-primary/10 text-primary rounded-full hover:bg-primary/20 transition-colors"
                     >
                       Edit
                     </button>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenDeleteMenuId((current) => (current === product.id ? null : product.id))
+                        }
+                        disabled={busyProductId === product.id}
+                        className="px-3 py-1.5 text-xs border border-accent/20 text-accent rounded-full hover:bg-accent/5 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                      {openDeleteMenuId === product.id && (
+                        <div className="absolute right-0 top-full z-10 mt-2 w-44 rounded-[16px] border border-primary/10 bg-white p-2 shadow-lg">
+                          <button
+                            type="button"
+                            onClick={() => handleSoftDelete(product)}
+                            className="block w-full rounded-[12px] px-3 py-2 text-left text-xs text-primary hover:bg-primary/5 transition-colors"
+                          >
+                            Soft delete
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleHardDelete(product)}
+                            className="block w-full rounded-[12px] px-3 py-2 text-left text-xs text-accent hover:bg-accent/5 transition-colors"
+                          >
+                            Hard delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

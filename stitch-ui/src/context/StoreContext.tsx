@@ -110,6 +110,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     Record<string, Record<string, string>>
   >({});
   const [lastAdjustmentMessage, setLastAdjustmentMessage] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const state = loadState();
@@ -130,8 +131,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       JSON.stringify({ cart, wishlist, addresses, orders }),
     );
   }, [addresses, cart, hydrated, orders, wishlist]);
-
-  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | null = null;
@@ -169,13 +168,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        const data = await productService.getAllProducts();
-        const variantIndex: Record<string, Record<string, string>> = {};
+  const loadProducts = useCallback(async () => {
+    try {
+      const data = await productService.getAllProducts();
+      const variantIndex: Record<string, Record<string, string>> = {};
 
-        const mappedProducts: Product[] = data.map((p) => ({
+      const mappedProducts: Product[] = data
+        .filter((product) => product.variants.length > 0)
+        .map((p) => ({
           id: p.id,
           name: p.name,
           price: p.price,
@@ -204,26 +204,59 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           newArrival: p.isNew,
         }));
 
-        data.forEach((product) => {
-          variantIndex[product.id] = {};
-          product.variants.forEach((variant) => {
-            variantIndex[product.id][variant.name] = variant.id;
-          });
+      data.forEach((product) => {
+        if (product.variants.length === 0) {
+          return;
+        }
+
+        variantIndex[product.id] = {};
+        product.variants.forEach((variant) => {
+          variantIndex[product.id][variant.name] = variant.id;
         });
+      });
 
-        setVariantIdByProductAndSize(variantIndex);
-        setProducts(mappedProducts);
-      } catch (error) {
-        console.error("Failed to load products from Supabase", error);
-        setProducts([]);
-        setVariantIdByProductAndSize({});
-      } finally {
-        setProductsLoading(false);
-      }
-    };
-
-    void loadProducts();
+      setVariantIdByProductAndSize(variantIndex);
+      setProducts(mappedProducts);
+    } catch (error) {
+      console.error("Failed to load products from Supabase", error);
+      setProducts([]);
+      setVariantIdByProductAndSize({});
+    } finally {
+      setProductsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadProducts();
+
+    const channel = supabase
+      .channel("storefront-products")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "products" },
+        () => void loadProducts(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "product_variants" },
+        () => void loadProducts(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "inventory" },
+        () => void loadProducts(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "product_images" },
+        () => void loadProducts(),
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [loadProducts]);
 
   const refreshOrders = useCallback(async () => {
     if (!userId) return;

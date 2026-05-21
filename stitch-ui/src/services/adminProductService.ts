@@ -18,6 +18,24 @@ function extractStoragePath(url: string): string | null {
   if (!path.startsWith("products/")) return null;
   return path;
 }
+
+async function deleteProductMediaFromStorage(urls: string[]): Promise<void> {
+  const storagePaths = urls
+    .map((url) => extractStoragePath(url))
+    .filter((path): path is string => Boolean(path));
+
+  if (storagePaths.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase.storage
+    .from("product-media")
+    .remove(storagePaths);
+
+  if (error) {
+    throw new Error(`Failed to delete product media from storage: ${error.message}`);
+  }
+}
 export type AdminProductVariant = {
   id: string;
   name: string;
@@ -328,9 +346,48 @@ export async function uploadProductMedia(file: File): Promise<string> {
   return data.publicUrl;
 }
 
+export async function softDeleteAdminProduct(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("products")
+    .update({ is_active: false })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`Failed to soft delete product: ${error.message}`);
+  }
+}
+
+export async function hardDeleteAdminProduct(id: string): Promise<void> {
+  const { data: productImages, error: imagesError } = await supabase
+    .from("product_images")
+    .select("image_url")
+    .eq("product_id", id);
+
+  if (imagesError) {
+    throw new Error(`Failed to fetch product media before delete: ${imagesError.message}`);
+  }
+
+  const { error: deleteProductError } = await supabase
+    .from("products")
+    .delete()
+    .eq("id", id);
+
+  if (deleteProductError) {
+    throw new Error(
+      deleteProductError.code === "23503"
+        ? "This product cannot be hard deleted because it is linked to existing orders."
+        : `Failed to hard delete product: ${deleteProductError.message}`
+    );
+  }
+
+  await deleteProductMediaFromStorage((productImages ?? []).map((item) => item.image_url));
+}
+
 export const adminProductService = {
   getAdminProducts,
   createAdminProduct,
   updateAdminProduct,
   uploadProductMedia,
+  softDeleteAdminProduct,
+  hardDeleteAdminProduct,
 };
