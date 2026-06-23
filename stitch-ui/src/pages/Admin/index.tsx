@@ -1,5 +1,6 @@
 import { Outlet, NavLink, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { ExternalLink } from "lucide-react";
 import { useStore } from "../../context/StoreContext";
 import { getCurrentUser } from "../../services/authService";
 
@@ -56,7 +57,18 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-background-light px-5 py-6">
-      <h1 className="text-[1.375rem] font-bold leading-[1.25] text-primary">Admin</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-[1.375rem] font-bold leading-[1.25] text-primary">Admin</h1>
+        <a
+          href="/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 rounded-full border border-primary/20 bg-ivory px-3.5 py-1.5 text-xs text-primary hover:border-accent hover:text-accent transition duration-300 shadow-sm"
+        >
+          <span>View Storefront</span>
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      </div>
       <div className="mt-6 flex gap-3">
         {links.map((link) => (
           <NavLink

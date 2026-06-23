@@ -21,7 +21,7 @@ create table if not exists public.products (
   product_type text not null default 'jewellery'
     check (product_type in ('jewellery', 'bangles', 'cosmetics')),
   product_collection text not null default 'none'
-    check (product_collection in ('none', 'bridal', 'festive')),
+    check (product_collection in ('none', 'bridal', 'festive', 'eye-makeup')),
   is_returnable boolean not null default true,
   return_policy_note text,
   created_at timestamptz not null default now()

@@ -40,6 +40,7 @@ export default function AdminProducts() {
     media: [] as { id?: string; image_url: string; is_video: boolean; display_order: number; file?: File }[],
   });
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ completed: number; total: number } | null>(null);
 
   useEffect(() => {
     loadProducts();
@@ -291,16 +292,27 @@ export default function AdminProducts() {
       setSubmitting(true);
       setError(null);
       
-      // 1. Upload new media files
+      // 1. Upload new media files in parallel
       const finalMedia = [...formData.media];
-      for (let i = 0; i < finalMedia.length; i++) {
-        const m = finalMedia[i];
-        if (m.file) {
-          const publicUrl = await adminProductService.uploadProductMedia(m.file);
-          finalMedia[i] = { ...m, image_url: publicUrl };
-          delete finalMedia[i].file;
-        }
+      const newMediaToUpload = finalMedia
+        .map((m, index) => ({ item: m, index }))
+        .filter(({ item }) => item.file !== undefined);
+
+      if (newMediaToUpload.length > 0) {
+        setUploadProgress({ completed: 0, total: newMediaToUpload.length });
+        let completedCount = 0;
+        await Promise.all(
+          newMediaToUpload.map(async ({ item, index }) => {
+            if (!item.file) return;
+            const publicUrl = await adminProductService.uploadProductMedia(item.file);
+            finalMedia[index] = { ...item, image_url: publicUrl };
+            delete finalMedia[index].file;
+            completedCount++;
+            setUploadProgress({ completed: completedCount, total: newMediaToUpload.length });
+          })
+        );
       }
+      setUploadProgress(null);
 
       const productPayload = {
         name: formData.name,
@@ -346,7 +358,9 @@ export default function AdminProducts() {
       setError(err.message || "Failed to save product");
     } finally {
       setSubmitting(false);
+      setUploadProgress(null);
     }
+
   };
 
   const toggleActive = async (product: AdminProduct) => {
@@ -667,6 +681,7 @@ export default function AdminProducts() {
                       <option value="none">No special collection</option>
                       <option value="bridal">Bridal</option>
                       <option value="festive">Festive</option>
+                      <option value="eye-makeup">Eye Makeup</option>
                     </select>
                   </div>
                 </div>
@@ -964,8 +979,13 @@ export default function AdminProducts() {
                 disabled={submitting}
                 className="rounded-full bg-primary px-8 py-2 text-sm text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
-                {submitting ? "Saving..." : "Save Product"}
+                {uploadProgress
+                  ? `Uploading ${uploadProgress.completed} of ${uploadProgress.total} images...`
+                  : submitting
+                    ? "Saving product..."
+                    : "Save Product"}
               </button>
+
             </div>
           </form>
         </div>

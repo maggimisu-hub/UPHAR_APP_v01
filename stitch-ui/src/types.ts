@@ -1,5 +1,5 @@
 export type ProductType = "jewellery" | "bangles" | "cosmetics";
-export type ProductCollection = "none" | "bridal" | "festive";
+export type ProductCollection = "none" | "bridal" | "festive" | "eye-makeup";
 
 export type Product = {
   id: string;

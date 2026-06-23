@@ -220,78 +220,82 @@ export async function updateAdminProduct(
     throw new Error(`Failed to update product: ${productError.message}`);
   }
 
-  // Handle variants
-  const { data: existingVariants, error: fetchError } = await supabase
-    .from("product_variants")
-    .select("id")
-    .eq("product_id", id);
+  // Fetch existing variants and media in parallel
+  const [variantsResult, mediaResult] = await Promise.all([
+    supabase
+      .from("product_variants")
+      .select("id")
+      .eq("product_id", id),
+    supabase
+      .from("product_images")
+      .select("id, image_url")
+      .eq("product_id", id),
+  ]);
 
-  if (fetchError) throw new Error(`Failed to fetch variants: ${fetchError.message}`);
+  if (variantsResult.error) {
+    throw new Error(`Failed to fetch variants: ${variantsResult.error.message}`);
+  }
+  if (mediaResult.error) {
+    throw new Error(`Failed to fetch media: ${mediaResult.error.message}`);
+  }
 
-  const existingIds = new Set((existingVariants ?? []).map((v) => v.id));
+  const existingVariants = variantsResult.data ?? [];
+  const existingMedia = mediaResult.data ?? [];
+
+  // Determine variants to delete/insert/update
+  const existingIds = new Set(existingVariants.map((v) => v.id));
   const newIds = new Set(variants.filter((v) => v.id).map((v) => v.id));
-
-  // Delete missing variants
   const toDelete = Array.from(existingIds).filter((vid) => !newIds.has(vid));
-  if (toDelete.length > 0) {
-    const { error: deleteError } = await supabase.from("product_variants").delete().in("id", toDelete);
-    if (deleteError) throw new Error(`Failed to delete variants: ${deleteError.message}`);
-  }
 
-  // Insert and update variants
-  for (const variant of variants) {
-    if (variant.id) {
-      const { error: updateError } = await supabase
-        .from("product_variants")
-        .update({
-          name: variant.name,
-          price: variant.price,
-          mrp_price: variant.mrp_price ?? null,
-          discount_percent: variant.discount_percent ?? null,
-        })
-        .eq("id", variant.id);
-      if (updateError) throw new Error(`Failed to update variant: ${updateError.message}`);
-    } else {
-      const { data: insertedVariant, error: insertError } = await supabase
-        .from("product_variants")
-        .insert([{
-          product_id: id,
-          name: variant.name,
-          price: variant.price,
-          mrp_price: variant.mrp_price ?? null,
-          discount_percent: variant.discount_percent ?? null,
-        }])
-        .select()
-        .single();
-      if (insertError) throw new Error(`Failed to insert variant: ${insertError.message}`);
+  const variantsToInsert = variants
+    .filter((v) => !v.id)
+    .map((v) => ({
+      product_id: id,
+      name: v.name,
+      price: v.price,
+      mrp_price: v.mrp_price ?? null,
+      discount_percent: v.discount_percent ?? null,
+    }));
 
-      if (insertedVariant) {
-        const { error: invError } = await supabase
-          .from("inventory")
-          .insert([{ variant_id: insertedVariant.id, stock: 0 }]);
-        if (invError) throw new Error(`Failed to initialize inventory for added variant: ${invError.message}`);
-      }
-    }
-  }
+  const variantsToUpdate = variants.filter((v) => v.id);
 
-  // Handle media — delete missing, update existing, insert new
-  const { data: existingMedia, error: fetchMediaError } = await supabase
-    .from("product_images")
-    .select("id, image_url")
-    .eq("product_id", id);
-
-  if (fetchMediaError) throw new Error(`Failed to fetch media: ${fetchMediaError.message}`);
-
-  const existingMediaMap = new Map((existingMedia ?? []).map((m) => [m.id, m.image_url]));
+  // Determine media to delete/insert/update
+  const existingMediaMap = new Map(existingMedia.map((m) => [m.id, m.image_url]));
   const newMediaIds = new Set(media.filter((m) => m.id).map((m) => m.id));
-
   const toDeleteMediaIds = Array.from(existingMediaMap.keys()).filter((mid) => !newMediaIds.has(mid));
-  if (toDeleteMediaIds.length > 0) {
-    // 1. Delete DB rows
-    const { error: deleteMediaError } = await supabase.from("product_images").delete().in("id", toDeleteMediaIds);
-    if (deleteMediaError) throw new Error(`Failed to delete media rows: ${deleteMediaError.message}`);
 
-    // 2. Delete underlying storage files for managed URLs
+  const mediaToInsert = media
+    .filter((m) => !m.id)
+    .map((m) => ({
+      product_id: id,
+      image_url: m.image_url,
+      is_video: m.is_video,
+      display_order: m.display_order,
+    }));
+
+  const mediaToUpdate = media.filter((m) => m.id);
+
+  // Perform deletions in parallel
+  const deletePromises: Promise<void>[] = [];
+
+  if (toDelete.length > 0) {
+    deletePromises.push(
+      (async () => {
+        const { error } = await supabase.from("product_variants").delete().in("id", toDelete);
+        if (error) throw new Error(`Failed to delete variants: ${error.message}`);
+      })()
+    );
+  }
+
+  let storageDeletePromise: Promise<void> | null = null;
+  if (toDeleteMediaIds.length > 0) {
+    deletePromises.push(
+      (async () => {
+        const { error } = await supabase.from("product_images").delete().in("id", toDeleteMediaIds);
+        if (error) throw new Error(`Failed to delete media rows: ${error.message}`);
+      })()
+    );
+
     const storagePaths: string[] = [];
     for (const mid of toDeleteMediaIds) {
       const url = existingMediaMap.get(mid);
@@ -301,29 +305,93 @@ export async function updateAdminProduct(
     }
 
     if (storagePaths.length > 0) {
-      const { error: storageDeleteError } = await supabase.storage
-        .from("product-media")
-        .remove(storagePaths);
-      if (storageDeleteError) {
-        throw new Error(`Media rows deleted but failed to remove storage files: ${storageDeleteError.message}`);
-      }
+      storageDeletePromise = (async () => {
+        const { error: storageRemoveError } = await supabase.storage
+          .from("product-media")
+          .remove(storagePaths);
+        if (storageRemoveError) {
+          throw new Error(`Media rows deleted but failed to remove storage files: ${storageRemoveError.message}`);
+        }
+      })();
     }
   }
 
-  for (const m of media) {
-    if (m.id) {
-      const { error: updMediaError } = await supabase
-        .from("product_images")
-        .update({ image_url: m.image_url, is_video: m.is_video, display_order: m.display_order })
-        .eq("id", m.id);
-      if (updMediaError) throw new Error(`Failed to update media: ${updMediaError.message}`);
-    } else {
-      const { error: insMediaError } = await supabase
-        .from("product_images")
-        .insert([{ product_id: id, image_url: m.image_url, is_video: m.is_video, display_order: m.display_order }]);
-      if (insMediaError) throw new Error(`Failed to insert media: ${insMediaError.message}`);
-    }
+  await Promise.all([
+    ...deletePromises,
+    ...(storageDeletePromise ? [storageDeletePromise] : []),
+  ]);
+
+  // Perform updates and inserts in parallel
+  const writePromises: Promise<any>[] = [];
+
+  // Update existing variants
+  for (const variant of variantsToUpdate) {
+    writePromises.push(
+      (async () => {
+        const { error } = await supabase
+          .from("product_variants")
+          .update({
+            name: variant.name,
+            price: variant.price,
+            mrp_price: variant.mrp_price ?? null,
+            discount_percent: variant.discount_percent ?? null,
+          })
+          .eq("id", variant.id!);
+        if (error) throw new Error(`Failed to update variant: ${error.message}`);
+      })()
+    );
   }
+
+  // Update existing media
+  for (const m of mediaToUpdate) {
+    writePromises.push(
+      (async () => {
+        const { error } = await supabase
+          .from("product_images")
+          .update({
+            image_url: m.image_url,
+            is_video: m.is_video,
+            display_order: m.display_order,
+          })
+          .eq("id", m.id!);
+        if (error) throw new Error(`Failed to update media: ${error.message}`);
+      })()
+    );
+  }
+
+  // Insert new variants in bulk & initialize inventory in bulk
+  if (variantsToInsert.length > 0) {
+    writePromises.push(
+      (async () => {
+        const { data: inserted, error: insertError } = await supabase
+          .from("product_variants")
+          .insert(variantsToInsert)
+          .select("id");
+        if (insertError) throw new Error(`Failed to insert variants: ${insertError.message}`);
+
+        if (inserted && inserted.length > 0) {
+          const inventoryRows = inserted.map((v) => ({
+            variant_id: v.id,
+            stock: 0,
+          }));
+          const { error: invError } = await supabase.from("inventory").insert(inventoryRows);
+          if (invError) throw new Error(`Failed to initialize inventory for variants: ${invError.message}`);
+        }
+      })()
+    );
+  }
+
+  // Insert new media in bulk
+  if (mediaToInsert.length > 0) {
+    writePromises.push(
+      (async () => {
+        const { error } = await supabase.from("product_images").insert(mediaToInsert);
+        if (error) throw new Error(`Failed to insert media: ${error.message}`);
+      })()
+    );
+  }
+
+  await Promise.all(writePromises);
 }
 
 export async function uploadProductMedia(file: File): Promise<string> {
