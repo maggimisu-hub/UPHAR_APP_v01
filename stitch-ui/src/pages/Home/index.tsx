@@ -145,8 +145,8 @@ export default function Home() {
       <section className="container-shell py-20 sm:py-24">
         <SectionTitle
           eyebrow="Featured Collections"
-          title="Jewellery sets chosen for ceremonies and celebration."
-          body="Explore signature necklace sets, bridal bangles, and heirloom-inspired pairings presented with quiet elegance."
+          title="Handpicked favourites from across the store."
+          body="Explore our curated selection of jewellery, beauty essentials, and festive pieces presented with quiet elegance."
         />
         <div className="mt-12">
           <ProductGrid products={featuredProducts} />
@@ -157,8 +157,8 @@ export default function Home() {
         <div className="container-shell">
           <SectionTitle
             eyebrow="New Arrivals"
-            title="Bangles, necklaces, and earrings in a fresh seasonal edit."
-            body="New arrivals with polished finishes, ceremonial detailing, and a refined Uphar presentation."
+            title="Fresh additions to the Uphar store."
+            body="Discover the latest products across jewellery, bangles, and beauty essentials, curated with the same refined Uphar presentation."
           />
           <div className="mt-12">
             <ProductGrid products={newArrivals} />
