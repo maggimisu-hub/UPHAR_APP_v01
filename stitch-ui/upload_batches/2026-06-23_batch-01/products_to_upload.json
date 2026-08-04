@@ -1,0 +1,29 @@
+{
+  "name": "Mamaearth Charcoal Black Long Stay Kajal",
+  "description": "Experience bold, intense eyes that stay flawless from morning meetings to midnight plans. Mamaearth Charcoal Black Long Stay Kajal delivers rich black color with smooth one-stroke application and up to 11 hours of wear. Its waterproof and smudge-proof formula keeps your eye look fresh throughout the day without frequent touch-ups. Enriched with Vitamin C and Chamomile, it is gentle on the eyes while providing deep, defined pigmentation. Ophthalmologically Tested, Made Safe Certified, and PETA Certified Cruelty-Free.",
+  "product_type": "cosmetics",
+  "product_collection": "Eye Makeup",
+  "mrp_price": 299,
+  "discount_percent": 10,
+  "is_returnable": true,
+  "return_policy_note": "Return accepted only for unopened and unused products.",
+  "is_active": true,
+  "is_featured": true,
+  "is_new": true,
+  "variants": [
+    {
+      "name": "Charcoal Black",
+      "mrp_price": 299,
+      "discount_percent": 10
+    }
+  ],
+  "media": [
+    { "filename": "mamaearth-kajal_01.png", "is_video": false },
+    { "filename": "mamaearth-kajal_02.png", "is_video": false },
+    { "filename": "mamaearth-kajal_03.png", "is_video": false },
+    { "filename": "mamaearth-kajal_04.png", "is_video": false },
+    { "filename": "mamaearth-kajal_05.png", "is_video": false },
+    { "filename": "mamaearth-kajal_06.png", "is_video": false },
+    { "filename": "mamaearth-kajal_07.png", "is_video": false }
+  ]
+}

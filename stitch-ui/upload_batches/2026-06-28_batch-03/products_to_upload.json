@@ -1,0 +1,25 @@
+[
+  {
+    "name": "VLCC Kajal",
+    "description": "Experience bold, long-lasting eye definition with VLCC Kajal. Its richly pigmented formula delivers intense black color while gliding smoothly for comfortable all-day wear. Designed for everyday use, it helps create precise, dramatic, or smokey eye looks with ease.",
+    "product_type": "cosmetics",
+    "product_collection": "eye-makeup",
+    "mrp_price": 199,
+    "discount_percent": 10,
+    "is_returnable": true,
+    "return_policy_note": "",
+    "is_active": true,
+    "is_featured": false,
+    "is_new": true,
+    "variants": [],
+    "media": [
+      { "filename": "vlcc-kajal_01.png", "is_video": false },
+      { "filename": "vlcc-kajal_02.png", "is_video": false },
+      { "filename": "vlcc-kajal_03.png", "is_video": false },
+      { "filename": "vlcc-kajal_04.png", "is_video": false },
+      { "filename": "vlcc-kajal_05.png", "is_video": false },
+      { "filename": "vlcc-kajal_06.png", "is_video": false },
+      { "filename": "vlcc-kajal_07.png", "is_video": false }
+    ]
+  }
+]

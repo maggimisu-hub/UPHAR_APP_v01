@@ -1,0 +1,46 @@
+[
+  {
+    "name": "The Derma Co 10% Vitamin C Face Serum 30ml",
+    "description": "Reveal brighter, healthier-looking skin with The Derma Co 10% Vitamin C Face Serum. Powered by 10% Vitamin C, 5% Niacinamide, Hyaluronic Acid, and Ferulic Acid, this dermatologist-designed formula helps reduce dark spots, pigmentation, post-acne marks, and dullness while enhancing skin radiance. Its Deep Penetration Formula™ delivers active ingredients effectively into the skin for visible results. Lightweight, non-sticky, and suitable for all skin types.",
+    "product_type": "cosmetics",
+    "product_collection": "skincare",
+    "mrp_price": 699,
+    "discount_percent": 10,
+    "is_returnable": true,
+    "return_policy_note": "Return accepted only for unopened and unused products",
+    "is_active": true,
+    "is_featured": false,
+    "is_new": true,
+    "variants": [],
+    "media": [
+      {
+        "filename": "dermaco-serum_01.png",
+        "is_video": false
+      },
+      {
+        "filename": "dermaco-serum_02.png",
+        "is_video": false
+      },
+      {
+        "filename": "dermaco-serum_03.png",
+        "is_video": false
+      },
+      {
+        "filename": "dermaco-serum_04.png",
+        "is_video": false
+      },
+      {
+        "filename": "dermaco-serum_05.png",
+        "is_video": false
+      },
+      {
+        "filename": "dermaco-serum_06.png",
+        "is_video": false
+      },
+      {
+        "filename": "dermaco-serum_07.png",
+        "is_video": false
+      }
+    ]
+  }
+]

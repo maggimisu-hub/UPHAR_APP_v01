@@ -1,0 +1,46 @@
+[
+  {
+    "name": "Fiama Shower Gel Blackcurrant & Bearberry Radiant Glow",
+    "description": "Experience a refreshing shower with Fiama Blackcurrant & Bearberry Radiant Glow Shower Gel. Enriched with Blackcurrant & Bearberry extracts, Skin Conditioners and Moisture Lock Technology, it creates a rich foamy lather that gently cleanses while helping leave skin feeling soft, smooth and refreshed. Dermatologically tested and suitable for all skin types.",
+    "product_type": "cosmetics",
+    "product_collection": "bath-body",
+    "mrp_price": 149,
+    "discount_percent": 7,
+    "is_returnable": true,
+    "return_policy_note": "",
+    "is_active": true,
+    "is_featured": false,
+    "is_new": true,
+    "variants": [],
+    "media": [
+      {
+        "filename": "fiama-shower-gel-blackcurrant-bearberry_01.png",
+        "is_video": false
+      },
+      {
+        "filename": "fiama-shower-gel-blackcurrant-bearberry_02.png",
+        "is_video": false
+      },
+      {
+        "filename": "fiama-shower-gel-blackcurrant-bearberry_03.png",
+        "is_video": false
+      },
+      {
+        "filename": "fiama-shower-gel-blackcurrant-bearberry_04.png",
+        "is_video": false
+      },
+      {
+        "filename": "fiama-shower-gel-blackcurrant-bearberry_05.png",
+        "is_video": false
+      },
+      {
+        "filename": "fiama-shower-gel-blackcurrant-bearberry_06.png",
+        "is_video": false
+      },
+      {
+        "filename": "fiama-shower-gel-blackcurrant-bearberry_07.png",
+        "is_video": false
+      }
+    ]
+  }
+]
