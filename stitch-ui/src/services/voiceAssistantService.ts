@@ -290,10 +290,10 @@ const CANCEL_WORDS = new Set([
   // English
   "no", "nope", "cancel", "don't", "stop", "nevermind", "never mind",
   // Hindi / Hinglish
-  "nahi", "nhi", "nahin", "na",
+  "nahi", "nhi", "nahin", "na", "mat",
   "mat karo", "mat kar",
   "rehne do", "rehne de", "chhodo", "chhod do",
-  "band karo", "band kar do",
+  "band karo", "band kar do", "band",
   "ruk", "ruko",
 ]);
 
@@ -332,6 +332,222 @@ const DETAIL_TRIGGERS = [
   "wapas", "wapsi",
   "stock mein", "available hai",
 ];
+
+// ─────────────────────────────────────────────────────
+// Devanagari-to-Roman Algorithmic Transliterator
+// Unlimited: works for ANY Hindi word, not just known products.
+// ─────────────────────────────────────────────────────
+
+// Devanagari consonant map (base characters → Roman phonetic)
+const DEVANAGARI_CONSONANTS: Record<string, string> = {
+  "क": "k", "ख": "kh", "ग": "g", "घ": "gh", "ङ": "ng",
+  "च": "ch", "छ": "chh", "ज": "j", "झ": "jh", "ञ": "ny",
+  "ट": "t", "ठ": "th", "ड": "d", "ढ": "dh", "ण": "n",
+  "त": "t", "थ": "th", "द": "d", "ध": "dh", "न": "n",
+  "प": "p", "फ": "f", "ब": "b", "भ": "bh", "म": "m",
+  "य": "y", "र": "r", "ल": "l", "व": "v",
+  "श": "sh", "ष": "sh", "स": "s", "ह": "h",
+  "क़": "q", "ख़": "kh", "ग़": "g", "ज़": "z", "फ़": "f", "ड़": "r", "ढ़": "rh",
+};
+
+// Devanagari vowel diacritics (matras → Roman phonetic)
+const DEVANAGARI_MATRAS: Record<string, string> = {
+  "ा": "a", "ि": "i", "ी": "ee", "ु": "u", "ू": "oo",
+  "े": "e", "ै": "ai", "ो": "o", "ौ": "au",
+  "ं": "n", "ँ": "n", "ः": "h",
+  "\u094D": "",  // Halant (virama) — suppresses inherent 'a'
+};
+
+// Standalone Devanagari vowels
+const DEVANAGARI_VOWELS: Record<string, string> = {
+  "अ": "a", "आ": "aa", "इ": "i", "ई": "ee", "उ": "u", "ऊ": "oo",
+  "ए": "e", "ऐ": "ai", "ओ": "o", "औ": "au", "ऋ": "ri",
+};
+
+// Devanagari digits
+const DEVANAGARI_DIGITS: Record<string, string> = {
+  "०": "0", "१": "1", "२": "2", "३": "3", "४": "4",
+  "५": "5", "६": "6", "७": "7", "८": "8", "९": "9",
+};
+
+// High-priority word-level overrides for common product/brand terms
+// where algorithmic transliteration may produce a slightly different spelling.
+// These take priority over the character-level converter.
+const DEVANAGARI_WORD_OVERRIDES: Record<string, string> = {
+  "काजल": "kajal",
+  "सीरम": "serum",
+  "बैंगल्स": "bangles",
+  "चूड़ियाँ": "bangles",
+  "चूड़ी": "bangles",
+  "झुमका": "jhumka",
+  "झुमके": "jhumka",
+  "हार": "necklace",
+  "नेकलेस": "necklace",
+  "चोकर": "choker",
+  "ज्वेलरी": "jewellery",
+  "गहने": "jewellery",
+  "शावर": "shower",
+  "जेल": "gel",
+  "मिस्ट": "mist",
+  "परफ्यूम": "perfume",
+  "लिपस्टिक": "lipstick",
+  "क्रीम": "cream",
+  "टोनर": "toner",
+  "बिंदी": "bindi",
+  "पायल": "payal",
+  "ब्रेसलेट": "bracelet",
+  "ममाअर्थ": "mamaearth",
+  "मामाअर्थ": "mamaearth",
+  "डर्मा": "derma",
+  "फियामा": "fiama",
+  "एक्वालोजिका": "aqualogica",
+  "वीएलसीसी": "vlcc",
+  "डॉट": "dot",
+  "की": "key",
+  // Confirm/Cancel words in Devanagari → exact Roman matches
+  "हाँ": "haan",
+  "हां": "haan",
+  "हा": "ha",
+  "जी": "ji",
+  "बिल्कुल": "bilkul",
+  "ज़रूर": "zaroor",
+  "जरूर": "zaroor",
+  "ठीक": "theek",
+  "नहीं": "nahi",
+  "नही": "nahi",
+  "ना": "na",
+  "मत": "mat",
+  "रुको": "ruko",
+  "रुक": "ruk",
+  "बंद": "band",
+  "छोड़ो": "chhodo",
+  "रहने": "rehne",
+};
+
+// Devanagari filler words (action verbs, pronouns, postpositions etc.)
+const DEVANAGARI_FILLERS = new Set([
+  "मुझे", "मैं", "हमें", "कृपया", "ज़रा", "जरा",
+  "दिखाओ", "दिखाइए", "दिखाइये", "दिखा", "दिखाये",
+  "खरीदनी", "खरीदना", "खरीदो", "खरीद",
+  "चाहिए", "चाहिये", "लेना", "लो", "दो", "दे",
+  "है", "हैं", "हो", "था", "थी",
+  "का", "की", "के", "को", "से", "पर", "में", "मे",
+  "यह", "वह", "ये", "वो", "कोई", "कुछ",
+  "और", "भी", "तो", "ना", "न", "जी",
+  "एक", "कर", "करो", "करें", "कीजिये", "कीजिए",
+  "बताओ", "बताइए", "बताइये", "बता",
+  "डालो", "डाल", "डालें", "रखो", "रख",
+  "कार्ट", "बैग",
+]);
+
+/**
+ * Detect if a string contains Devanagari characters.
+ */
+function containsDevanagari(text: string): boolean {
+  return /[\u0900-\u097F]/.test(text);
+}
+
+/**
+ * Algorithmic Devanagari-to-Roman transliteration.
+ * Works for ANY Hindi word — no hardcoded product dictionary required.
+ * Process: word-level overrides first, then character-level conversion.
+ */
+function transliterateDevanagari(text: string): string {
+  if (!containsDevanagari(text)) {
+    return text;
+  }
+
+  // Split into words, process each independently
+  const words = text.split(/\s+/);
+  const transliteratedWords: string[] = [];
+
+  for (const word of words) {
+    // Skip empty strings
+    if (!word) continue;
+
+    // Check if the entire word is a Devanagari filler — skip it
+    if (DEVANAGARI_FILLERS.has(word)) {
+      continue;
+    }
+
+    // Check word-level overrides first
+    if (DEVANAGARI_WORD_OVERRIDES[word]) {
+      transliteratedWords.push(DEVANAGARI_WORD_OVERRIDES[word]);
+      continue;
+    }
+
+    // If no Devanagari in this word, keep it as-is
+    if (!containsDevanagari(word)) {
+      transliteratedWords.push(word);
+      continue;
+    }
+
+    // Character-level algorithmic transliteration
+    let result = "";
+    const chars = Array.from(word);
+    let i = 0;
+
+    while (i < chars.length) {
+      const char = chars[i];
+      const nextChar = i + 1 < chars.length ? chars[i + 1] : null;
+
+      // Devanagari digit
+      if (DEVANAGARI_DIGITS[char]) {
+        result += DEVANAGARI_DIGITS[char];
+        i++;
+        continue;
+      }
+
+      // Standalone vowel
+      if (DEVANAGARI_VOWELS[char]) {
+        result += DEVANAGARI_VOWELS[char];
+        i++;
+        continue;
+      }
+
+      // Consonant
+      if (DEVANAGARI_CONSONANTS[char]) {
+        result += DEVANAGARI_CONSONANTS[char];
+        i++;
+
+        // Check for halant (virama) — suppresses inherent 'a'
+        if (i < chars.length && chars[i] === "\u094D") {
+          i++; // skip halant, no inherent 'a'
+          continue;
+        }
+
+        // Check for matra (vowel diacritic)
+        if (i < chars.length && DEVANAGARI_MATRAS[chars[i]] !== undefined) {
+          result += DEVANAGARI_MATRAS[chars[i]];
+          i++;
+          continue;
+        }
+
+        // No matra and no halant — add inherent 'a'
+        // But suppress trailing 'a' at the end of words (Hindi convention)
+        if (i < chars.length) {
+          result += "a";
+        }
+        continue;
+      }
+
+      // Matra without consonant (rare but possible)
+      if (DEVANAGARI_MATRAS[char] !== undefined) {
+        result += DEVANAGARI_MATRAS[char];
+        i++;
+        continue;
+      }
+
+      // Non-Devanagari character — pass through
+      result += char;
+      i++;
+    }
+
+    transliteratedWords.push(result);
+  }
+
+  return transliteratedWords.join(" ");
+}
 
 // ─────────────────────────────────────────────────────
 // Articles and stopwords to strip (multilingual)
@@ -402,7 +618,8 @@ const SEARCH_NOISE_WORDS = new Set([
 ]);
 
 function normalizeText(value: string): string {
-  return value.toLowerCase().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
+  // Allow Devanagari characters (Unicode range 0900-097F) alongside word characters
+  return value.toLowerCase().replace(/[^\w\s\u0900-\u097F]/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function singularizeToken(token: string): string {
@@ -513,6 +730,13 @@ function extractSearchConstraints(rawQuery: string): SearchConstraints {
   let normalized = normalizeText(rawQuery);
   const constraints: SearchConstraints = { cleanProductTerm: normalized };
 
+  // Transliterate Devanagari input to Roman script before any processing
+  if (containsDevanagari(normalized)) {
+    normalized = transliterateDevanagari(normalized);
+    // Re-normalize after transliteration (clean up extra spaces etc.)
+    normalized = normalized.toLowerCase().replace(/\s+/g, " ").trim();
+  }
+
   for (const filler of FILLER_PHRASES) {
     if (normalized.includes(filler)) {
       normalized = normalized.replace(filler, " ");
@@ -588,8 +812,14 @@ function getDisambiguationOptions(queryTerm: string, products: Product[]): Disam
 // ─────────────────────────────────────────────────────
 
 export function parseUserIntent(rawQuery: string, _lang?: AssistantLanguage): ParsedIntent {
-  const lower = rawQuery.trim().toLowerCase();
-  const constraints = extractSearchConstraints(rawQuery);
+  let lower = rawQuery.trim().toLowerCase();
+
+  // Transliterate Devanagari input early so confirm/cancel/trigger checks work
+  if (containsDevanagari(lower)) {
+    lower = transliterateDevanagari(lower).toLowerCase().replace(/\s+/g, " ").trim();
+  }
+
+  const constraints = extractSearchConstraints(lower);
 
   // 1. CONFIRM intent
   if (CONFIRM_WORDS.has(lower) || CONFIRM_PREFIXES.some((p) => lower.startsWith(p))) {
@@ -807,9 +1037,42 @@ export class VoiceToolHandler {
     }
 
     if (matches.length === 0) {
+      // Build dynamic suggestion that EXCLUDES the term the user just searched for
+      const suggestionPool = ["kajal", "serum", "bangles", "shower gel", "mist"];
+      const searchedLower = (searchTerm || "").toLowerCase();
+      const filteredSuggestions = suggestionPool.filter(
+        (s) => !searchedLower.includes(s) && !s.includes(searchedLower)
+      );
+      const suggestionText = filteredSuggestions.slice(0, 3).join(", ");
+
+      // Build a smarter fallback message that doesn't repeat the searched term
+      const fallbackHint = suggestionText
+        ? (lang === "hi"
+            ? `${suggestionText} के बारे में पूछें!`
+            : lang === "hinglish"
+              ? `${suggestionText} ke baare mein poocho!`
+              : `Try asking for ${suggestionText}!`)
+        : (lang === "hi"
+            ? "कोई और प्रोडक्ट खोजें!"
+            : lang === "hinglish"
+              ? "Koi aur product search karo!"
+              : "Try searching for another product!");
+
+      const noneTemplate = getLocalizedResponse("search_none", lang, { term: searchTerm || query });
+      // Replace the static suggestion part with our dynamic one
+      const staticSuggestionPatterns = [
+        /Try asking for kajal, serum, or bangles[.!]?/i,
+        /काजल, सीरम, या बैंगल्स के बारे में पूछें[.!]?/,
+        /Kajal, serum, ya bangles ke baare mein poocho[.!]?/i,
+      ];
+      let smartMessage = noneTemplate;
+      for (const pattern of staticSuggestionPatterns) {
+        smartMessage = smartMessage.replace(pattern, fallbackHint);
+      }
+
       return {
         success: true,
-        message: getLocalizedResponse("search_none", lang, { term: searchTerm || query }),
+        message: smartMessage,
         data: [],
         constraints: parsed.constraints,
       };
