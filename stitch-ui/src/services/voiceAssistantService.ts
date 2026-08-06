@@ -304,15 +304,15 @@ const CANCEL_PREFIXES = ["no ", "cancel ", "nahi ", "nhi ", "mat "];
 // ─────────────────────────────────────────────────────
 
 const ADD_TO_CART_TRIGGERS_EN = [
-  { word: "add", requires: ["cart", "bag", "buy"] },
+  { word: "add", requires: ["cart", "card", "bag", "buy"] },
 ];
 
 const ADD_TO_CART_TRIGGERS_MULTI = [
-  "cart mein", "bag mein",
-  "daal do", "daaldo", "daal de",
+  "cart mein", "bag mein", "card mein", "card me", "kard mein", "kard me",
+  "daal do", "daaldo", "daal de", "dal do", "daldo", "dal de",
   "add karo", "add kar do",
   "kharid", "khareedna", "khareed lo",
-  "isko add", "isko daal",
+  "isko add", "isko daal", "dalna", "dalna hai",
 ];
 
 const NEW_ARRIVAL_TRIGGERS = [
@@ -422,6 +422,13 @@ const DEVANAGARI_WORD_OVERRIDES: Record<string, string> = {
   "बंद": "band",
   "छोड़ो": "chhodo",
   "रहने": "rehne",
+  "कार्ड": "card",
+  "कार्ट": "cart",
+  "ऐड": "add",
+  "एड": "add",
+  "डालो": "dalo",
+  "डालना": "dalna",
+  "डालें": "dalen",
 };
 
 // Devanagari filler words (action verbs, pronouns, postpositions etc.)
@@ -553,7 +560,7 @@ function transliterateDevanagari(text: string): string {
 // Articles and stopwords to strip (multilingual)
 // ─────────────────────────────────────────────────────
 
-const STOPWORDS_REGEX = /\b(the|a|an|to|in|for|of|is|it|this|that|me|you|my|our|ke|ka|ki|ko|se|par|pe|mein|hai|kya|ye|wo|ek|aur|mujhe|isko|usko|mera|meri|apna|apni|cart|bag|add|karo|kardo|kar|daal|daalo|daaldo|dikhao|dikhaiye|dikhaye|chahiye)\b/g;
+const STOPWORDS_REGEX = /\b(the|a|an|to|in|for|of|is|it|this|that|me|you|my|our|ke|ka|ki|ko|se|par|pe|mein|hai|kya|ye|wo|ek|aur|mujhe|isko|usko|mera|meri|apna|apni|cart|card|bag|add|karo|kardo|kar|daal|daalo|daaldo|dikhao|dikhaiye|dikhaye|chahiye)\b/g;
 
 const PRICE_CONSTRAINT_PATTERNS: Array<{
   regex: RegExp;
@@ -647,6 +654,9 @@ function buildCatalogKeywordMap(products: Product[]): Map<string, Set<string>> {
   const keywordMap = new Map<string, Set<string>>();
 
   const addKeywordLinks = (key: string, aliases: Iterable<string>) => {
+    if (!key) {
+      return;
+    }
     const normalizedKey = normalizeToken(key);
     if (!normalizedKey || normalizedKey.length < 3) {
       return;
@@ -951,9 +961,20 @@ export function smartSearchProducts(
     return { product, score };
   });
 
-  // Filter out products with 0 score and sort by score descending
-  const results = scoredProducts
-    .filter((item) => item.score > 0)
+  // Filter out products with 0 score
+  const validScored = scoredProducts.filter((item) => item.score > 0);
+  if (validScored.length === 0) {
+    return [];
+  }
+
+  // Calculate highest score
+  const maxScore = Math.max(...validScored.map((item) => item.score));
+
+  // Filter out weak matches (keep only those with score >= 35% of maxScore)
+  const filteredScored = validScored.filter((item) => item.score >= maxScore * 0.35);
+
+  // Sort by score descending and return products
+  const results = filteredScored
     .sort((a, b) => b.score - a.score)
     .map((item) => item.product);
 
