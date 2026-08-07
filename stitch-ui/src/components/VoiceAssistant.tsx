@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Mic, MicOff, Volume2, X, Sparkles, ShoppingBag, Check, AlertCircle, RefreshCw } from "lucide-react";
 import { useStore } from "../context/StoreContext";
+import { supabase } from "../lib/supabaseClient";
 import {
   VoiceToolHandler,
   fetchRealtimeSessionToken,
@@ -8,6 +9,7 @@ import {
   isConfirmPhrase,
   isCancelPhrase,
   getLocalizedResponse,
+  setCustomVoiceRules,
   type ToolResult,
   type AssistantLanguage,
 } from "../services/voiceAssistantService";
@@ -87,6 +89,20 @@ export default function VoiceAssistant() {
       searchProducts,
       addToCart,
     });
+
+    // Fetch custom voice training rules from Supabase database
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("voice_training_rules")
+          .select("id, spoken_term, actual_term, created_at");
+        if (!error && Array.isArray(data)) {
+          setCustomVoiceRules(data);
+        }
+      } catch {
+        // Table might not exist yet before migration — ignore silently
+      }
+    })();
   }, [products, getNewArrivals, searchProducts, addToCart]);
 
   // Auto scroll transcript window

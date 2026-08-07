@@ -9,6 +9,7 @@ const links = [
   { to: "/admin/inventory", label: "Inventory" },
   { to: "/admin/orders", label: "Orders" },
   { to: "/admin/hero", label: "Hero" },
+  { to: "/admin/voice-training", label: "Voice Training" },
 ];
 
 export default function AdminLayout() {

@@ -204,6 +204,19 @@ export function getLocalizedResponse(
   return template;
 }
 
+export interface VoiceTrainingRule {
+  id?: string;
+  spoken_term: string;
+  actual_term: string;
+  created_at?: string;
+}
+
+let activeCustomRules: VoiceTrainingRule[] = [];
+
+export function setCustomVoiceRules(rules: VoiceTrainingRule[]): void {
+  activeCustomRules = Array.isArray(rules) ? rules : [];
+}
+
 // ─────────────────────────────────────────────────────
 // Pillar 1: Phonetic Brand Normalizer
 // Catches garbled speech-to-text transcriptions and maps
@@ -234,6 +247,18 @@ const PHONETIC_BRAND_ALIASES: Array<{ patterns: string[]; replacement: string }>
  */
 function normalizePhoneticBrands(text: string): string {
   let result = text;
+
+  // 1. Apply user-trained dynamic rules from database (highest priority)
+  for (const rule of activeCustomRules) {
+    const pattern = rule.spoken_term ? rule.spoken_term.trim() : "";
+    const replacement = rule.actual_term ? rule.actual_term.trim() : "";
+    if (pattern && replacement) {
+      const regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+      result = result.replace(regex, replacement);
+    }
+  }
+
+  // 2. Apply built-in static phonetic brand aliases
   for (const { patterns, replacement } of PHONETIC_BRAND_ALIASES) {
     for (const pattern of patterns) {
       // Case-insensitive whole-word-ish replacement
@@ -757,9 +782,18 @@ function expandQueryTokens(queryTokens: string[], _products: Product[]): string[
 
     expandedTokens.add(token);
 
-    // Only add strict synonyms — no catalog cross-linking
+    // Add strict synonyms
     const staticAliases = SYNONYM_MAP[token] || [];
     staticAliases.forEach((alias) => expandedTokens.add(normalizeToken(alias)));
+
+    // Add custom dynamic synonyms from database
+    for (const rule of activeCustomRules) {
+      const ruleSpoken = normalizeToken(rule.spoken_term || "");
+      const ruleActual = normalizeToken(rule.actual_term || "");
+      if (ruleSpoken === token && ruleActual) {
+        expandedTokens.add(ruleActual);
+      }
+    }
   });
 
   return Array.from(expandedTokens).filter(Boolean);

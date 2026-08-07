@@ -9,6 +9,7 @@ import AdminInventory from "./pages/Admin/Inventory";
 import AdminOrders from "./pages/Admin/Orders";
 import AdminProducts from "./pages/Admin/Products";
 import AdminHeroContent from "./pages/Admin/HeroContent";
+import AdminVoiceTraining from "./pages/Admin/VoiceTraining";
 import AIStylist from "./pages/AIStylist";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
@@ -58,6 +59,7 @@ export default function App() {
             <Route path="inventory" element={<AdminInventory />} />
             <Route path="orders" element={<AdminOrders />} />
             <Route path="hero" element={<AdminHeroContent />} />
+            <Route path="voice-training" element={<AdminVoiceTraining />} />
           </Route>
         </Routes>
       </BrowserRouter>
