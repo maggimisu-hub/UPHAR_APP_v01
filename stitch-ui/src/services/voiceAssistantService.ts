@@ -205,28 +205,68 @@ export function getLocalizedResponse(
 }
 
 // ─────────────────────────────────────────────────────
+// Pillar 1: Phonetic Brand Normalizer
+// Catches garbled speech-to-text transcriptions and maps
+// them to correct brand/product keywords BEFORE any processing.
+// Sorted longest-first to avoid partial replacements.
+// ─────────────────────────────────────────────────────
+
+const PHONETIC_BRAND_ALIASES: Array<{ patterns: string[]; replacement: string }> = [
+  // DOT & KEY brand aliases
+  { patterns: ["nautanki", "not and key", "dot and key", "dot n key", "dot in key", "dot n ki", "dot ki", "dot in ki", "dot & key", "dot&key", "dotandkey", "dotnkey", "dotkey"], replacement: "dot key" },
+  // MAMAEARTH brand aliases
+  { patterns: ["mama earth", "mama art", "mamaart", "mamma earth", "mommy earth"], replacement: "mamaearth" },
+  // DERMA CO brand aliases
+  { patterns: ["the derma co", "derma co", "dermaco", "durma co", "darma co", "dharma co"], replacement: "derma" },
+  // AQUALOGICA brand aliases
+  { patterns: ["aqua logica", "aqua logia", "aqualogika", "aqua logic"], replacement: "aqualogica" },
+  // FIAMA brand aliases
+  { patterns: ["fiama di wills", "fiama de wills", "fiyama"], replacement: "fiama" },
+  // VLCC brand aliases
+  { patterns: ["v l c c", "vlcc", "vl cc"], replacement: "vlcc" },
+];
+
+/**
+ * Normalize garbled brand names from speech-to-text into canonical forms.
+ * Runs BEFORE all other processing.
+ */
+function normalizePhoneticBrands(text: string): string {
+  let result = text;
+  for (const { patterns, replacement } of PHONETIC_BRAND_ALIASES) {
+    for (const pattern of patterns) {
+      // Case-insensitive whole-word-ish replacement
+      const regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+      result = result.replace(regex, replacement);
+    }
+  }
+  return result.replace(/\s+/g, " ").trim();
+}
+
+// ─────────────────────────────────────────────────────
 // Synonym / Category keyword dictionary
+// STRICT: Only close synonyms. No cross-brand or cross-category links.
 // ─────────────────────────────────────────────────────
 
 const SYNONYM_MAP: Record<string, string[]> = {
-  kajal: ["kajal", "kohl", "eye", "eyeliner", "charcoal"],
-  serum: ["serum", "vitamin c", "face", "derma"],
-  bangles: ["bangle", "bangles", "bridal", "jewellery"],
-  bangle: ["bangle", "bangles", "bridal", "jewellery"],
-  jewellery: ["jewellery", "jewelry", "necklace", "earrings", "jhumka", "choker", "bangles"],
-  jewelry: ["jewellery", "jewelry", "necklace", "earrings", "jhumka", "choker", "bangles"],
-  necklace: ["necklace", "choker", "set", "bridal", "jewellery"],
-  earrings: ["earrings", "earring", "jhumka", "chandbali", "drops", "studs", "jewellery"],
-  earring: ["earrings", "earring", "jhumka", "chandbali", "drops", "studs", "jewellery"],
-  jhumka: ["jhumka", "jhumki", "earrings", "jewellery"],
-  choker: ["choker", "necklace", "set", "jewellery"],
-  shower: ["shower", "gel", "shower gel", "body wash", "fiama"],
-  mist: ["mist", "body mist", "perfume", "vanilla", "aqualogica"],
-  cosmetics: ["cosmetics", "kajal", "serum", "mist", "shower gel"],
-  derma: ["derma", "the derma co", "vitamin c"],
-  mamaearth: ["mamaearth", "charcoal"],
-  aqualogica: ["aqualogica", "vanilla", "mist"],
-  fiama: ["fiama", "shower gel", "berry"],
+  kajal: ["kajal", "kohl", "eyeliner"],
+  serum: ["serum"],
+  bangles: ["bangle", "bangles", "choodi", "chudi"],
+  bangle: ["bangle", "bangles", "choodi", "chudi"],
+  jewellery: ["jewellery", "jewelry"],
+  jewelry: ["jewellery", "jewelry"],
+  necklace: ["necklace", "choker", "haar"],
+  earrings: ["earrings", "earring", "jhumka", "jhumki"],
+  earring: ["earrings", "earring", "jhumka", "jhumki"],
+  jhumka: ["jhumka", "jhumki", "earrings"],
+  choker: ["choker", "necklace"],
+  shower: ["shower gel", "body wash"],
+  gel: ["shower gel", "body wash"],
+  mist: ["body mist"],
+  // Brand synonyms kept minimal — no cross-category links
+  mamaearth: ["mamaearth"],
+  aqualogica: ["aqualogica"],
+  fiama: ["fiama"],
+  derma: ["derma"],
 };
 
 // ─────────────────────────────────────────────────────
@@ -700,9 +740,8 @@ function buildCatalogKeywordMap(products: Product[]): Map<string, Set<string>> {
   return keywordMap;
 }
 
-function expandQueryTokens(queryTokens: string[], products: Product[]): string[] {
+function expandQueryTokens(queryTokens: string[], _products: Product[]): string[] {
   const expandedTokens = new Set<string>();
-  const catalogKeywordMap = buildCatalogKeywordMap(products);
 
   queryTokens.forEach((rawToken) => {
     const token = normalizeToken(rawToken);
@@ -712,20 +751,9 @@ function expandQueryTokens(queryTokens: string[], products: Product[]): string[]
 
     expandedTokens.add(token);
 
+    // Only add strict synonyms — no catalog cross-linking
     const staticAliases = SYNONYM_MAP[token] || [];
     staticAliases.forEach((alias) => expandedTokens.add(normalizeToken(alias)));
-
-    const catalogAliases = catalogKeywordMap.get(token);
-    if (catalogAliases) {
-      catalogAliases.forEach((alias) => expandedTokens.add(alias));
-    }
-
-    for (const [catalogKey, aliases] of catalogKeywordMap.entries()) {
-      if (catalogKey.includes(token) || token.includes(catalogKey)) {
-        expandedTokens.add(catalogKey);
-        aliases.forEach((alias) => expandedTokens.add(alias));
-      }
-    }
   });
 
   return Array.from(expandedTokens).filter(Boolean);
@@ -743,9 +771,11 @@ function extractSearchConstraints(rawQuery: string): SearchConstraints {
   // Transliterate Devanagari input to Roman script before any processing
   if (containsDevanagari(normalized)) {
     normalized = transliterateDevanagari(normalized);
-    // Re-normalize after transliteration (clean up extra spaces etc.)
     normalized = normalized.toLowerCase().replace(/\s+/g, " ").trim();
   }
+
+  // Apply phonetic brand normalization
+  normalized = normalizePhoneticBrands(normalized);
 
   for (const filler of FILLER_PHRASES) {
     if (normalized.includes(filler)) {
@@ -909,7 +939,9 @@ export function smartSearchProducts(
   queryTerm: string,
   constraints?: SearchConstraints
 ): Product[] {
-  const normalized = normalizeText(queryTerm);
+  // Apply phonetic brand normalization first
+  const brandNormalized = normalizePhoneticBrands(queryTerm);
+  const normalized = normalizeText(brandNormalized);
   if (!normalized) {
     return [];
   }
@@ -917,9 +949,13 @@ export function smartSearchProducts(
   const queryTokens = normalized
     .split(/\s+/)
     .map((token) => normalizeToken(token))
-    .filter((token) => token.length > 0);
+    .filter((token) => token.length > 0 && !SEARCH_NOISE_WORDS.has(token));
 
-  const tokenArray = expandQueryTokens(queryTokens, products);
+  if (queryTokens.length === 0) {
+    return [];
+  }
+
+  const expandedTokens = expandQueryTokens(queryTokens, products);
 
   // Score each product based on matching tokens
   const scoredProducts = products.map((product) => {
@@ -931,32 +967,43 @@ export function smartSearchProducts(
     const pSizes = normalizeText((product.sizes || []).join(" "));
 
     const fullText = `${pName} ${pType} ${pColl} ${pDesc} ${pTag} ${pSizes}`;
-    const productTokens = new Set(tokenizeSearchText(fullText));
 
     let score = 0;
+    let matchedQueryTokenCount = 0;
 
-    // Exact string match bonus
+    // Exact full-string match bonus (highest priority)
     if (pName.includes(normalized)) {
-      score += 100;
+      score += 200;
+      matchedQueryTokenCount = queryTokens.length; // all tokens matched
     }
 
-    // Token match scoring
+    // Per-token scoring: count how many QUERY tokens matched
     queryTokens.forEach((token) => {
       if (pName.includes(token)) {
-        score += 30;
-      } else if (productTokens.has(token) || fullText.includes(token)) {
+        score += 40;
+        matchedQueryTokenCount++;
+      } else if (fullText.includes(token)) {
         score += 15;
+        matchedQueryTokenCount++;
       }
     });
 
-    // Synonym token scoring
-    tokenArray.forEach((token) => {
-      if (pName.includes(token)) {
-        score += 10;
-      } else if (productTokens.has(token) || fullText.includes(token)) {
-        score += 5;
+    // Synonym bonus (lower weight, does NOT count toward matchedQueryTokenCount)
+    expandedTokens.forEach((token) => {
+      if (!queryTokens.includes(token)) {
+        if (pName.includes(token)) {
+          score += 8;
+        } else if (fullText.includes(token)) {
+          score += 3;
+        }
       }
     });
+
+    // CRITICAL: For multi-word queries, require ALL query tokens to match.
+    // This prevents "fake serum" from matching products that only contain "serum".
+    if (queryTokens.length > 1 && matchedQueryTokenCount < queryTokens.length) {
+      score = 0;
+    }
 
     return { product, score };
   });
@@ -970,8 +1017,8 @@ export function smartSearchProducts(
   // Calculate highest score
   const maxScore = Math.max(...validScored.map((item) => item.score));
 
-  // Filter out weak matches (keep only those with score >= 35% of maxScore)
-  const filteredScored = validScored.filter((item) => item.score >= maxScore * 0.35);
+  // Filter out weak matches (keep only those with score >= 40% of maxScore)
+  const filteredScored = validScored.filter((item) => item.score >= maxScore * 0.4);
 
   // Sort by score descending and return products
   const results = filteredScored
