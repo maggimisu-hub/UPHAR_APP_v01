@@ -222,6 +222,8 @@ const PHONETIC_BRAND_ALIASES: Array<{ patterns: string[]; replacement: string }>
   { patterns: ["aqua logica", "aqua logia", "aqualogika", "aqua logic"], replacement: "aqualogica" },
   // FIAMA brand aliases
   { patterns: ["fiama di wills", "fiama de wills", "fiyama"], replacement: "fiama" },
+  // PRODUCT CATEGORY ALIASES
+  { patterns: ["siram", "shriram", "seeram", "seram", "shree ram", "shri ram"], replacement: "serum" },
   // VLCC brand aliases
   { patterns: ["v l c c", "vlcc", "vl cc"], replacement: "vlcc" },
 ];
@@ -249,7 +251,7 @@ function normalizePhoneticBrands(text: string): string {
 
 const SYNONYM_MAP: Record<string, string[]> = {
   kajal: ["kajal", "kohl", "eyeliner"],
-  serum: ["serum"],
+  serum: ["serum", "siram", "seeram", "seram", "shriram"],
   bangles: ["bangle", "bangles", "choodi", "chudi"],
   bangle: ["bangle", "bangles", "choodi", "chudi"],
   jewellery: ["jewellery", "jewelry"],
@@ -416,6 +418,10 @@ const DEVANAGARI_DIGITS: Record<string, string> = {
 const DEVANAGARI_WORD_OVERRIDES: Record<string, string> = {
   "काजल": "kajal",
   "सीरम": "serum",
+  "सिरम": "serum",
+  "श्रीराम": "serum",
+  "शिरम": "serum",
+  "सैरम": "serum",
   "बैंगल्स": "bangles",
   "चूड़ियाँ": "bangles",
   "चूड़ी": "bangles",
@@ -939,8 +945,12 @@ export function smartSearchProducts(
   queryTerm: string,
   constraints?: SearchConstraints
 ): Product[] {
+  let term = queryTerm;
+  if (containsDevanagari(term)) {
+    term = transliterateDevanagari(term);
+  }
   // Apply phonetic brand normalization first
-  const brandNormalized = normalizePhoneticBrands(queryTerm);
+  const brandNormalized = normalizePhoneticBrands(term);
   const normalized = normalizeText(brandNormalized);
   if (!normalized) {
     return [];
