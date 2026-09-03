@@ -9,6 +9,7 @@ import Textarea from "../../components/Textarea";
 import { useStore } from "../../context/StoreContext";
 import { formatPrice } from "../../lib/format";
 import { getProductTypeCopy } from "../../lib/productTypeLabels";
+import { TAKEAWAY_STORE } from "../../lib/takeaway";
 import type { CheckoutFormValues } from "../../types";
 
 const initialForm: CheckoutFormValues = {
@@ -100,16 +101,25 @@ export default function Checkout() {
     <section className="container-shell py-16 sm:py-20">
       <SectionTitle
         eyebrow="Checkout"
-        title="Complete your Uphar order."
-        body="Enter delivery details to place your order."
+        title="Complete order for store pickup."
+        body="We do not ship. Pay at the store when the order is Ready."
       />
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <form onSubmit={handleSubmit} className="space-y-5 rounded-[32px] border border-primary/15 bg-ivory p-6 sm:p-8">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.3em] text-muted">Delivery details</p>
-            <h2 className="mt-3 text-[1.375rem] font-bold leading-[1.25] text-primary">Order checkout</h2>
+            <p className="text-[11px] uppercase tracking-[0.3em] text-muted">Pickup contact</p>
+            <h2 className="mt-3 text-[1.375rem] font-bold leading-[1.25] text-primary">Pickup reservation</h2>
           </div>
+
+          <div className="rounded-[24px] border border-accent/20 bg-accent/5 p-5 text-sm">
+            <p className="text-[11px] uppercase tracking-[0.24em] text-accent font-semibold">Store pickup location</p>
+            <p className="mt-2 font-medium text-primary">{TAKEAWAY_STORE.name}, {TAKEAWAY_STORE.city}</p>
+            <p className="mt-1 text-xs text-muted">Hours: {TAKEAWAY_STORE.pickupWindow}</p>
+            <p className="mt-1 text-xs text-muted">Store Contact: {TAKEAWAY_STORE.phone}</p>
+            <p className="mt-3 text-xs font-medium text-primary">Pay in person when you collect your order. We will notify you once it is ready.</p>
+          </div>
+
           {submitError && (
             <div className="rounded-[16px] border border-primary/10 bg-primary/5 p-4 text-sm text-primary">
               <p>{submitError}</p>
@@ -117,13 +127,20 @@ export default function Checkout() {
           )}
           <Input label="Name" value={values.name} onChange={(event) => updateField("name", event.target.value)} error={errors.name} placeholder="Full name" />
           <Input label="Phone" value={values.phone} onChange={(event) => updateField("phone", event.target.value)} error={errors.phone} placeholder="10 digit mobile number" inputMode="numeric" />
-          <Textarea label="Address" value={values.address} onChange={(event) => updateField("address", event.target.value)} error={errors.address} placeholder="House number, street, area" />
+          
+          <div className="pt-1">
+            <p className="text-xs text-muted">
+              This is not a delivery address. We use it to identify you at pickup.
+            </p>
+          </div>
+
+          <Textarea label="Contact Address / ID Record" value={values.address} onChange={(event) => updateField("address", event.target.value)} error={errors.address} placeholder="House number, street, area" />
           <div className="grid gap-5 grid-cols-1 md:grid-cols-2">
             <Input label="City" value={values.city} onChange={(event) => updateField("city", event.target.value)} error={errors.city} placeholder="City" />
             <Input label="Pincode" value={values.pincode} onChange={(event) => updateField("pincode", event.target.value)} error={errors.pincode} placeholder="6 digit pincode" inputMode="numeric" />
           </div>
           <Button type="submit" className="w-full">
-            Place order
+            Place pickup order
           </Button>
         </form>
 
@@ -156,8 +173,8 @@ export default function Checkout() {
               <span className="text-primary">{formatPrice(cartSubtotal)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span>Shipping</span>
-              <span className="text-primary">Complimentary</span>
+              <span>Fulfilment</span>
+              <span className="text-primary">Store pickup (Pay at store)</span>
             </div>
             <div className="flex items-center justify-between border-t border-primary/15 pt-4 text-base">
               <span className="text-primary">Total</span>

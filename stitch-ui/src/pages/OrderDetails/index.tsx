@@ -185,11 +185,22 @@ export default function OrderDetails() {
       </div>
 
       <div className="mt-6 rounded-[28px] border border-primary/15 bg-ivory p-5 text-sm text-muted">
-        <p className="text-primary">Pickup details</p>
-        <p className="mt-2">{TAKEAWAY_STORE.name}</p>
-        <p className="mt-1">{TAKEAWAY_STORE.phone}</p>
-        <p className="mt-2">{TAKEAWAY_STORE.city}</p>
-        <p>{TAKEAWAY_STORE.pickupWindow}</p>
+        <p className="text-xs uppercase tracking-[0.24em] font-semibold text-primary">Store pickup location</p>
+        <p className="mt-3 font-medium text-primary">{TAKEAWAY_STORE.name}</p>
+        <p className="mt-1">{TAKEAWAY_STORE.city}</p>
+        <p className="mt-1">Pickup Hours: {TAKEAWAY_STORE.pickupWindow}</p>
+        <p className="mt-1">Store Phone: {TAKEAWAY_STORE.phone}</p>
+      </div>
+
+      <div className="mt-6 rounded-[28px] border border-primary/15 bg-ivory p-5 text-sm text-muted">
+        <p className="text-xs uppercase tracking-[0.24em] font-semibold text-primary">Your contact on this order</p>
+        <p className="mt-3 font-medium text-primary">{order.shipping.name}</p>
+        <p className="mt-1">Phone: {order.shipping.phone}</p>
+        {order.shipping.address && order.shipping.address !== "-" && (
+          <p className="mt-1 text-xs text-muted">
+            ID Record: {order.shipping.address}, {order.shipping.city} {order.shipping.pincode}
+          </p>
+        )}
       </div>
 
       <div className="mt-6 rounded-[28px] border border-primary/15 bg-ivory p-5 text-sm">
@@ -198,8 +209,8 @@ export default function OrderDetails() {
           <span>{formatPrice(order.subtotal)}</span>
         </div>
         <div className="mt-2 flex justify-between text-muted">
-          <span>Shipping</span>
-          <span>{formatPrice(order.shippingCost)}</span>
+          <span>Fulfilment</span>
+          <span>Store pickup (Pay at store)</span>
         </div>
         <div className="mt-4 flex justify-between border-t border-primary/15 pt-4 text-charcoal">
           <span>Total</span>

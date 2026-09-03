@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
+import { TAKEAWAY_STORE } from "../lib/takeaway";
 import type { CheckoutFormValues, Order } from "../types";
 
 type OrderRow = {
@@ -13,6 +14,16 @@ type OrderRow = {
     quantity: number;
     variant: { name: string } | { name: string }[] | null;
   }> | null;
+};
+
+type AddressRow = {
+  id: string;
+  name: string;
+  phone: string;
+  address_line: string;
+  city: string;
+  pincode: string;
+  created_at: string;
 };
 
 export async function createOrder(
@@ -68,57 +79,83 @@ export async function createAddressForCheckout(
 }
 
 export async function getCustomerOrders(userId: string): Promise<Order[]> {
-  const { data, error } = await supabase
-    .from("orders")
-    .select(
-      `
-        id,
-        user_id,
-        total_amount,
-        status,
-        payment_status,
-        created_at,
-        order_items (
-          product_id,
-          quantity,
-          variant:product_variants (
-            name
+  const [ordersRes, addressesRes] = await Promise.all([
+    supabase
+      .from("orders")
+      .select(
+        `
+          id,
+          user_id,
+          total_amount,
+          status,
+          payment_status,
+          created_at,
+          order_items (
+            product_id,
+            quantity,
+            variant:product_variants (
+              name
+            )
           )
-        )
-      `,
-    )
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+        `,
+      )
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("addresses")
+      .select("id, name, phone, address_line, city, pincode, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false }),
+  ]);
 
-  if (error) {
-    throw new Error(`getCustomerOrders failed: ${error.message}`);
+  if (ordersRes.error) {
+    throw new Error(`getCustomerOrders failed: ${ordersRes.error.message}`);
   }
 
-  const rows = (data as OrderRow[] | null) ?? [];
+  const rows = (ordersRes.data as OrderRow[] | null) ?? [];
+  const addresses = (addressesRes.data as AddressRow[] | null) ?? [];
 
-  return rows.map((row) => ({
-    id: row.id,
-    items: (row.order_items ?? []).map((item) => ({
-      productId: item.product_id,
-      size: Array.isArray(item.variant)
-        ? (item.variant[0]?.name ?? "Standard")
-        : (item.variant?.name ?? "Standard"),
-      quantity: item.quantity,
-    })),
-    shipping: {
-      name: "Store pickup",
-      phone: "-",
-      address: "Collect from Uphar store after status changes to Ready",
-      city: "In-store",
-      pincode: "-",
-    },
-    subtotal: Number(row.total_amount),
-    shippingCost: 0,
-    total: Number(row.total_amount),
-    orderStatus: row.status as Order["orderStatus"],
-    paymentStatus: row.payment_status as Order["paymentStatus"],
-    createdAt: row.created_at,
-  }));
+  return rows.map((row) => {
+    const orderTime = new Date(row.created_at).getTime();
+    const matchedAddress =
+      addresses.find(
+        (a) => new Date(a.created_at).getTime() <= orderTime + 60000,
+      ) ?? addresses[0];
+
+    const contactDetails: CheckoutFormValues = matchedAddress
+      ? {
+          name: matchedAddress.name || "Customer",
+          phone: matchedAddress.phone || "-",
+          address: matchedAddress.address_line || "In-store pickup",
+          city: matchedAddress.city || TAKEAWAY_STORE.city,
+          pincode: matchedAddress.pincode || "-",
+        }
+      : {
+          name: "Customer",
+          phone: "-",
+          address: "In-store pickup",
+          city: TAKEAWAY_STORE.city,
+          pincode: "-",
+        };
+
+    return {
+      id: row.id,
+      items: (row.order_items ?? []).map((item) => ({
+        productId: item.product_id,
+        size: Array.isArray(item.variant)
+          ? (item.variant[0]?.name ?? "Standard")
+          : (item.variant?.name ?? "Standard"),
+        quantity: item.quantity,
+      })),
+      shipping: contactDetails,
+      subtotal: Number(row.total_amount),
+      shippingCost: 0,
+      total: Number(row.total_amount),
+      orderStatus: row.status as Order["orderStatus"],
+      paymentStatus: row.payment_status as Order["paymentStatus"],
+      createdAt: row.created_at,
+    };
+  });
 }
 
 export const orderService = {

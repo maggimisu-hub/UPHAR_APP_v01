@@ -21,9 +21,9 @@ export default function Addresses() {
   return (
     <section className="container-shell py-16 sm:py-20">
       <SectionTitle
-        eyebrow="Addresses"
-        title="Saved delivery details."
-        body="Store preferred addresses for jewellery orders, festive gifting, and bridal deliveries."
+        eyebrow="Contact"
+        title="Saved contact details."
+        body="Store contact details to quickly identify your orders for in-store pickup. These locally saved contacts are optional; checkout always collects and confirms your contact details for each order."
       />
 
       <div className="mt-10 space-y-4">
@@ -54,19 +54,19 @@ export default function Addresses() {
           });
         }}
       >
-        <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Add address</p>
+        <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Add contact details</p>
         <div className="mt-4 grid gap-3">
           <Input label="Label" value={form.label} onChange={(event) => setForm((current) => ({ ...current, label: event.target.value }))} />
           <Input label="Full name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
           <Input label="Phone" value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} />
-          <Input label="Address line" value={form.line1} onChange={(event) => setForm((current) => ({ ...current, line1: event.target.value }))} />
+          <Input label="Contact Address / ID Record" value={form.line1} onChange={(event) => setForm((current) => ({ ...current, line1: event.target.value }))} />
           <div className="grid gap-3 sm:grid-cols-3">
             <Input label="City" value={form.city} onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))} />
             <Input label="State" value={form.state} onChange={(event) => setForm((current) => ({ ...current, state: event.target.value }))} />
             <Input label="Pincode" value={form.pincode} onChange={(event) => setForm((current) => ({ ...current, pincode: event.target.value }))} />
           </div>
         </div>
-        <Button className="mt-4">Save address</Button>
+        <Button className="mt-4">Save contact details</Button>
       </form>
     </section>
   );

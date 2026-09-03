@@ -477,7 +477,7 @@ export default function Account() {
             </p>
           )}
           <div className="mt-6 space-y-4 text-sm leading-7 text-muted">
-            <p>Keep track of bridal orders, festive purchases, and delivery details for upcoming occasions.</p>
+            <p>Keep track of bridal orders, festive purchases, and store pickup details for upcoming occasions.</p>
           </div>
           <div className="mt-8 grid grid-cols-1 gap-4 text-center text-sm md:grid-cols-2">
             <div className="rounded-[20px] bg-background-light p-4">

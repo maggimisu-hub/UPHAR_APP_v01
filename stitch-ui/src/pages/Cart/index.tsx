@@ -118,8 +118,8 @@ export default function Cart() {
               <span className="text-primary">{formatPrice(cartSubtotal)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span>Shipping</span>
-              <span className="text-primary">Complimentary</span>
+              <span>Fulfilment</span>
+              <span className="text-primary">Store pickup (Pay at store)</span>
             </div>
             <div className="flex items-center justify-between border-t border-primary/15 pt-4 text-base">
               <span className="text-primary">Total</span>
@@ -127,7 +127,7 @@ export default function Cart() {
             </div>
           </div>
           <Button href="/checkout" className="mt-8 w-full">
-            Continue to checkout
+            Continue to pickup checkout
           </Button>
         </aside>
       </div>

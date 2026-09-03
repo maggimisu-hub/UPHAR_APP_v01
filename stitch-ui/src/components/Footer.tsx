@@ -4,35 +4,26 @@ const columns = [
   {
     title: "About",
     links: [
-      { label: "Brand story", to: "/" },
-      { label: "Craft & quality", to: "/" },
-      { label: "Jewellery Concierge", to: "/stylist" },
+      { label: "Home", to: "/" },
+      { label: "Shop collection", to: "/shop" },
     ],
   },
   {
-    title: "Contact",
+    title: "Collections",
     links: [
-      { label: "support@uphar.com", to: "/account" },
-      { label: "Client services", to: "/account" },
-      { label: "Address book", to: "/addresses" },
+      { label: "Bridal", to: "/collection/bridal" },
+      { label: "Festive", to: "/collection/festive" },
+      { label: "Jewellery", to: "/type/jewellery" },
+      { label: "Bangles", to: "/type/bangles" },
+      { label: "Cosmetics", to: "/type/cosmetics" },
+    ],
+  },
+  {
+    title: "Account",
+    links: [
+      { label: "Client account", to: "/account" },
       { label: "Wishlist", to: "/wishlist" },
-    ],
-  },
-  {
-    title: "Policies",
-    links: [
-      { label: "Shipping", to: "/checkout" },
-      { label: "Returns", to: "/account" },
-      { label: "Privacy", to: "/account" },
-      { label: "Virtual preview", to: "/try-on" },
-    ],
-  },
-  {
-    title: "Access",
-    links: [
-      { label: "Account", to: "/account" },
-      { label: "Saved pieces", to: "/wishlist" },
-      { label: "Try-on", to: "/try-on" },
+      { label: "Shopping bag", to: "/cart" },
     ],
   },
 ];
@@ -40,7 +31,7 @@ const columns = [
 export default function Footer() {
   return (
     <footer className="mt-24 bg-primary text-ivory">
-      <div className="container-shell grid gap-10 py-16 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
+      <div className="container-shell grid gap-10 py-16 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
         <div className="max-w-sm">
           <p className="text-[11px] uppercase tracking-[0.35em] text-accent">Uphar</p>
           <h2 className="mt-4 font-display text-3xl">The Signature of Style</h2>
