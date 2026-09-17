@@ -1,15 +1,110 @@
 import https from "https";
 
+// Helper to determine allowed origin
+function getAllowedOrigin(originHeader) {
+  if (!originHeader) return null;
+  const normalized = originHeader.trim().toLowerCase();
+
+  // Allow localhost for development
+  if (
+    normalized === "http://localhost:3000" ||
+    normalized === "http://127.0.0.1:3000" ||
+    normalized === "http://localhost:5173" ||
+    normalized === "http://127.0.0.1:5173"
+  ) {
+    return originHeader;
+  }
+
+  // Allow production & deploy preview URLs if configured in Netlify env
+  const allowedEnvs = [
+    process.env.URL,
+    process.env.DEPLOY_PRIME_URL,
+    process.env.APP_URL,
+  ].filter(Boolean).map((u) => u.trim().toLowerCase().replace(/\/$/, ""));
+
+  for (const allowed of allowedEnvs) {
+    if (normalized === allowed || normalized.endsWith(".netlify.app")) {
+      return originHeader;
+    }
+  }
+
+  // If deployed on custom domain or Netlify subdomain
+  if (normalized.endsWith(".netlify.app") || normalized.includes("uphar")) {
+    return originHeader;
+  }
+
+  return null;
+}
+
 export async function handler(event, context) {
+  const requestOrigin = event.headers.origin || event.headers.Origin || "";
+  const allowedOrigin = getAllowedOrigin(requestOrigin);
+
   const headers = {
-    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Content-Type": "application/json",
   };
 
+  if (allowedOrigin) {
+    headers["Access-Control-Allow-Origin"] = allowedOrigin;
+  }
+
+  // Handle CORS Preflight
   if (event.httpMethod === "OPTIONS") {
+    if (requestOrigin && !allowedOrigin) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ error: "Forbidden: Origin not allowed" }),
+      };
+    }
     return { statusCode: 200, headers, body: JSON.stringify({ message: "OK" }) };
+  }
+
+  // Enforce POST method only
+  if (event.httpMethod !== "POST") {
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: "Method Not Allowed. Realtime session creation requires POST." }),
+    };
+  }
+
+  // Block cross-site request forgery if sec-fetch-site is explicitly cross-site
+  const secFetchSite = event.headers["sec-fetch-site"] || event.headers["Sec-Fetch-Site"];
+  if (secFetchSite === "cross-site") {
+    return {
+      statusCode: 403,
+      headers,
+      body: JSON.stringify({ error: "Forbidden: Cross-site requests are prohibited." }),
+    };
+  }
+
+  // Enforce Endpoint Authentication / Authorization
+  const authHeader = event.headers.authorization || event.headers.Authorization || "";
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return {
+      statusCode: 401,
+      headers,
+      body: JSON.stringify({
+        status: "error",
+        message: "Unauthorized: Missing or invalid Authorization header.",
+      }),
+    };
+  }
+
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  // Validate token structure (must be a non-trivial bearer token, e.g. JWT format)
+  if (!token || token.length < 20 || token.split(".").length !== 3) {
+    return {
+      statusCode: 401,
+      headers,
+      body: JSON.stringify({
+        status: "error",
+        message: "Unauthorized: Invalid authorization token format.",
+      }),
+    };
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
@@ -25,13 +120,10 @@ export async function handler(event, context) {
     };
   }
 
-  // Server-side diagnostic log only (never returned to browser)
-  const keyPrefix = apiKey.substring(0, 7) + "..." + apiKey.substring(apiKey.length - 4);
-  console.log(`[realtime-session] Processing session request with key prefix ${keyPrefix}`);
+  // Operational log without sensitive key fragments or tokens
+  console.log("[realtime-session] Processing authenticated session request");
 
   try {
-    // GA Realtime API: POST /v1/realtime/client_secrets
-    // GA schema: voice in audio.output, formats in audio.input/output.format
     const postData = JSON.stringify({
       session: {
         model: "gpt-realtime",
@@ -123,25 +215,24 @@ export async function handler(event, context) {
         }),
       };
     } else {
-      console.warn(`[realtime-session] OpenAI API returned status ${response.statusCode}: ${response.body}`);
+      console.warn(`[realtime-session] OpenAI API returned status ${response.statusCode}`);
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
           status: "fallback",
           message: `OpenAI API returned status ${response.statusCode}`,
-          details: response.body,
         }),
       };
     }
   } catch (error) {
-    console.error(`[realtime-session] Exception creating session: ${error.message}`);
+    console.error("[realtime-session] Exception creating session");
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         status: "fallback",
-        message: error.message || "Failed to create realtime session",
+        message: "Failed to create realtime session",
       }),
     };
   }

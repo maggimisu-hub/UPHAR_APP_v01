@@ -1,26 +1,24 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Mic, MicOff, Volume2, X, Sparkles, ShoppingBag, Check, AlertCircle, RefreshCw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Mic, MicOff, Volume2, X, Sparkles, ShoppingBag, Check, AlertCircle, RefreshCw, ExternalLink } from "lucide-react";
 import { useStore } from "../context/StoreContext";
 import { supabase } from "../lib/supabaseClient";
-import {
-  VoiceToolHandler,
-  fetchRealtimeSessionToken,
-  parseUserIntent,
-  isConfirmPhrase,
-  isCancelPhrase,
-  getLocalizedResponse,
-  setCustomVoiceRules,
-  type ToolResult,
-  type AssistantLanguage,
-} from "../services/voiceAssistantService";
+import { VoiceResolver } from "../services/voice/voiceResolver";
+import { setCustomVoiceRules } from "../services/voiceAssistantService";
+import { formatPrice } from "../lib/format";
+import { formatCartCommittedText, formatCartCancelledText } from "../services/voice/responses";
 import type { Product } from "../types";
+
+export type AssistantLanguage = "en" | "hi" | "hinglish";
 
 type Message = {
   id: string;
   sender: "user" | "assistant" | "system";
   text: string;
   timestamp: Date;
+  candidateProducts?: Product[];
   pendingConfirmation?: {
+    product: Product;
     productName: string;
     size: string;
     quantity: number;
@@ -29,19 +27,11 @@ type Message = {
 
 type AssistantState = "idle" | "listening" | "thinking" | "speaking" | "confirmation_pending" | "error";
 
-// ─────────────────────────────────────────────────────
-// Speech recognition / synthesis language mapping
-// ─────────────────────────────────────────────────────
-
 const SPEECH_LANG_MAP: Record<AssistantLanguage, string> = {
   en: "en-IN",
   hi: "hi-IN",
   hinglish: "hi-IN",
 };
-
-// ─────────────────────────────────────────────────────
-// Language selector labels
-// ─────────────────────────────────────────────────────
 
 const LANG_OPTIONS: { key: AssistantLanguage; label: string }[] = [
   { key: "en", label: "EN" },
@@ -50,7 +40,8 @@ const LANG_OPTIONS: { key: AssistantLanguage; label: string }[] = [
 ];
 
 export default function VoiceAssistant() {
-  const { products, getNewArrivals, searchProducts, addToCart } = useStore();
+  const navigate = useNavigate();
+  const { products, addToCart } = useStore();
   const [isOpen, setIsOpen] = useState(false);
   const [state, setState] = useState<AssistantState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -60,35 +51,30 @@ export default function VoiceAssistant() {
     {
       id: "welcome",
       sender: "assistant",
-      text: getLocalizedResponse("welcome", "en"),
+      text: "Namaste! I am your Uphar shopping assistant. Ask for Kajal, Serum, Bangles, or tell me what to find.",
       timestamp: new Date(),
     },
   ]);
 
-  // Context memory state across conversational turns
-  const [lastMatchedProduct, setLastMatchedProduct] = useState<Product | undefined>(undefined);
-  const [candidateProducts, setCandidateProducts] = useState<Product[] | undefined>(undefined);
   const [pendingCartItem, setPendingCartItem] = useState<{
     product: Product;
     productName: string;
     size: string;
     quantity: number;
   } | null>(null);
-  const [realtimeMode, setRealtimeMode] = useState<"checking" | "active" | "fallback">("checking");
 
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Initialize Tool Handler with store functions
-  const toolHandlerRef = useRef<VoiceToolHandler | null>(null);
+  // Initialize VoiceResolver instance
+  const resolverRef = useRef<VoiceResolver | null>(null);
 
   useEffect(() => {
-    toolHandlerRef.current = new VoiceToolHandler({
-      getProducts: () => products,
-      getNewArrivals,
-      searchProducts,
-      addToCart,
-    });
+    if (!resolverRef.current) {
+      resolverRef.current = new VoiceResolver(products);
+    } else {
+      resolverRef.current.updateCatalog(products);
+    }
 
     // Fetch custom voice training rules from Supabase database
     (async () => {
@@ -103,17 +89,16 @@ export default function VoiceAssistant() {
         // Table might not exist yet before migration — ignore silently
       }
     })();
-  }, [products, getNewArrivals, searchProducts, addToCart]);
+  }, [products]);
 
   // Auto scroll transcript window
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, transcript, state]);
 
-  // Handle language change — update welcome message
+  // Handle language change
   const handleLanguageChange = useCallback((newLang: AssistantLanguage) => {
     setLanguage(newLang);
-    // Add system notification about language change
     const langNames: Record<AssistantLanguage, string> = {
       en: "English",
       hi: "हिंदी",
@@ -131,51 +116,63 @@ export default function VoiceAssistant() {
   }, []);
 
   // Speech synthesis speaker
-  const speak = useCallback((text: string, onEnd?: () => void) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      if (onEnd) onEnd();
-      return;
-    }
+  const speak = useCallback(
+    (text: string, onEnd?: () => void) => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+        if (onEnd) onEnd();
+        return;
+      }
 
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      utterance.lang = SPEECH_LANG_MAP[language];
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.lang = SPEECH_LANG_MAP[language];
 
-      utterance.onstart = () => setState("speaking");
-      utterance.onend = () => {
+        utterance.onstart = () => setState("speaking");
+        utterance.onend = () => {
+          setState("idle");
+          if (onEnd) onEnd();
+        };
+        utterance.onerror = () => {
+          setState("idle");
+          if (onEnd) onEnd();
+        };
+
+        window.speechSynthesis.speak(utterance);
+      } catch {
         setState("idle");
         if (onEnd) onEnd();
-      };
-      utterance.onerror = () => {
-        setState("idle");
-        if (onEnd) onEnd();
-      };
-
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      setState("idle");
-      if (onEnd) onEnd();
-    }
-  }, [language]);
+      }
+    },
+    [language]
+  );
 
   // Add message to chat log
-  const addMessage = useCallback((sender: "user" | "assistant" | "system", text: string, pendingItem?: any) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        sender,
-        text,
-        timestamp: new Date(),
-        pendingConfirmation: pendingItem,
-      },
-    ]);
-  }, []);
+  const addMessage = useCallback(
+    (
+      sender: "user" | "assistant" | "system",
+      text: string,
+      pendingItem?: any,
+      candidateProducts?: Product[]
+    ) => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          sender,
+          text,
+          timestamp: new Date(),
+          pendingConfirmation: pendingItem,
+          candidateProducts,
+        },
+      ]);
+    },
+    []
+  );
 
-  // Process User Input query against tools & intent classifier
+  // Process User Input query using VoiceResolver
   const processQuery = useCallback(
     async (userText: string) => {
       if (!userText.trim()) return;
@@ -183,186 +180,60 @@ export default function VoiceAssistant() {
       addMessage("user", userText);
       setState("thinking");
 
-      const intent = parseUserIntent(userText, language);
-
-      // 1. CONFIRM INTENT (when pending cart confirmation exists)
-      if (intent.type === "CONFIRM" || (pendingCartItem && isConfirmPhrase(userText))) {
-        if (pendingCartItem) {
-          const result = toolHandlerRef.current?.addToCart(
-            pendingCartItem.product.name,
-            pendingCartItem.product,
-            undefined,
-            pendingCartItem.size,
-            pendingCartItem.quantity,
-            true, // Explicitly confirmed!
-            language
-          );
-
-          setPendingCartItem(null);
-          if (result?.success) {
-            addMessage("assistant", result.message);
-            speak(result.message);
-          } else {
-            const failMsg = result?.message || "Could not add item to cart.";
-            addMessage("assistant", failMsg);
-            speak(failMsg);
-          }
-          return;
-        } else {
-          // Confirm phrase but no pending item — give clarification
-          const msg = getLocalizedResponse("confirm_no_pending", language);
-          addMessage("assistant", msg);
-          speak(msg);
-          setState("idle");
-          return;
-        }
+      if (!resolverRef.current) {
+        resolverRef.current = new VoiceResolver(products);
       }
 
-      // 2. CANCEL INTENT
-      if (intent.type === "CANCEL" || (pendingCartItem && isCancelPhrase(userText))) {
-        if (pendingCartItem) {
-          setPendingCartItem(null);
-          const cancelMsg = getLocalizedResponse("cancel", language);
-          addMessage("assistant", cancelMsg);
-          speak(cancelMsg);
-        } else {
-          const msg = getLocalizedResponse("cancel_no_pending", language);
-          addMessage("assistant", msg);
-          speak(msg);
-          setState("idle");
-        }
+      const result = resolverRef.current.resolve(userText);
+
+      // Handle Page Navigation
+      if (result.action === "NAVIGATE_PAGE" && result.matchedProduct) {
+        navigate(`/product/${result.matchedProduct.id}`);
+        addMessage("assistant", result.message, undefined, [result.matchedProduct]);
+        speak(result.spokenText);
         return;
       }
 
-      // Check candidate selection by index (e.g. "first one", "1", "2", "mamaearth")
-      const lower = userText.toLowerCase();
-      if (candidateProducts && candidateProducts.length > 1) {
-        let chosenProduct: Product | undefined;
-        if (lower.includes("first") || lower.includes("1") || lower.includes("one") || lower.includes("pehla") || lower.includes("pahla")) {
-          chosenProduct = candidateProducts[0];
-        } else if (lower.includes("second") || lower.includes("2") || lower.includes("two") || lower.includes("doosra") || lower.includes("dusra")) {
-          chosenProduct = candidateProducts[1];
-        } else if (lower.includes("third") || lower.includes("3") || lower.includes("three") || lower.includes("teesra") || lower.includes("tisra")) {
-          chosenProduct = candidateProducts[2];
-        } else {
-          chosenProduct = candidateProducts.find((p) => p.name.toLowerCase().includes(intent.extractedProductTerm));
-        }
-
-        if (chosenProduct) {
-          setLastMatchedProduct(chosenProduct);
-          setCandidateProducts(undefined);
-
-          if (intent.type === "ADD_TO_CART") {
-            const result = toolHandlerRef.current?.addToCart(chosenProduct.name, chosenProduct, undefined, undefined, 1, false, language);
-            if (result?.requiresConfirmation && result.pendingCartItem) {
-              const pending = {
-                product: result.pendingCartItem.product,
-                productName: result.pendingCartItem.product.name,
-                size: result.pendingCartItem.size,
-                quantity: result.pendingCartItem.quantity,
-              };
-              setPendingCartItem(pending);
-              setState("confirmation_pending");
-              addMessage("assistant", result.message, pending);
-              speak(result.message);
-              return;
-            }
-          }
-
-          const detailResult = toolHandlerRef.current?.getProductDetails(chosenProduct.name, chosenProduct, language);
-          const msg = detailResult?.message || `Selected ${chosenProduct.name}. Would you like to add it to your cart?`;
-          addMessage("assistant", msg);
-          speak(msg);
-          return;
-        }
-      }
-
-      // 3. ADD TO CART INTENT
-      if (intent.type === "ADD_TO_CART") {
-        const result = toolHandlerRef.current?.addToCart(
-          userText,
-          lastMatchedProduct,
-          candidateProducts,
-          undefined,
-          1,
-          false,
-          language
-        );
-
-        if (result?.matchedProduct) {
-          setLastMatchedProduct(result.matchedProduct);
-        }
-        if (result?.candidateProducts) {
-          setCandidateProducts(result.candidateProducts);
-        }
-
-        if (result?.requiresConfirmation && result.pendingCartItem) {
-          const pending = {
-            product: result.pendingCartItem.product,
-            productName: result.pendingCartItem.product.name,
-            size: result.pendingCartItem.size,
-            quantity: result.pendingCartItem.quantity,
-          };
-          setPendingCartItem(pending);
-          setState("confirmation_pending");
-          addMessage("assistant", result.message, pending);
-          speak(result.message);
-        } else {
-          const msg = result?.message || getLocalizedResponse("cart_which_product", language);
-          addMessage("assistant", msg);
-          speak(msg);
-        }
+      // Handle Cart Commitment
+      if (result.action === "COMMITTED_CART" && result.matchedProduct) {
+        const size = result.matchedProduct.sizes[0] || "Default";
+        addToCart(result.matchedProduct.id, size, 1);
+        setPendingCartItem(null);
+        addMessage("assistant", result.message);
+        speak(result.spokenText);
         return;
       }
 
-      // 4. NEW ARRIVALS INTENT
-      if (intent.type === "NEW_ARRIVALS") {
-        const result = toolHandlerRef.current?.getNewArrivals(language);
-        if (result?.candidateProducts && result.candidateProducts.length > 0) {
-          setCandidateProducts(result.candidateProducts);
-          setLastMatchedProduct(result.candidateProducts[0]);
-        }
-        const msg = result?.message || getLocalizedResponse("new_arrivals_none", language);
-        addMessage("assistant", msg);
-        speak(msg);
+      // Handle Prompt Confirmation
+      if (result.action === "PROMPT_CONFIRMATION" && result.matchedProduct) {
+        const size = result.matchedProduct.sizes[0] || "Default";
+        const pending = {
+          product: result.matchedProduct,
+          productName: result.matchedProduct.name,
+          size,
+          quantity: 1,
+        };
+        setPendingCartItem(pending);
+        setState("confirmation_pending");
+        addMessage("assistant", result.message, pending, [result.matchedProduct]);
+        speak(result.spokenText);
         return;
       }
 
-      // 5. DETAILS INTENT
-      if (intent.type === "DETAILS") {
-        const result = toolHandlerRef.current?.getProductDetails(userText, lastMatchedProduct, language);
-        if (result?.matchedProduct) {
-          setLastMatchedProduct(result.matchedProduct);
-        }
-        const msg = result?.message || getLocalizedResponse("detail_not_found", language, { term: userText });
-        addMessage("assistant", msg);
-        speak(msg);
+      // Handle Display Products
+      if (result.action === "DISPLAY_PRODUCTS") {
+        setPendingCartItem(null);
+        addMessage("assistant", result.message, undefined, result.candidateProducts);
+        speak(result.spokenText);
         return;
       }
 
-      // 6. DEFAULT SEARCH INTENT
-      const searchResult = toolHandlerRef.current?.searchProducts(userText, lastMatchedProduct, language);
-
-      if (searchResult?.disambiguationOptions) {
-        setLastMatchedProduct(undefined);
-        setCandidateProducts(undefined);
-      } else if (searchResult?.matchedProduct) {
-        setLastMatchedProduct(searchResult.matchedProduct);
-        setCandidateProducts(undefined);
-      } else if (searchResult?.candidateProducts) {
-        setCandidateProducts(searchResult.candidateProducts);
-        if (searchResult.candidateProducts.length > 0) {
-          setLastMatchedProduct(searchResult.candidateProducts[0]);
-        }
-      } else {
-        setCandidateProducts(undefined);
-      }
-
-      const respMsg = searchResult?.message || getLocalizedResponse("search_none", language, { term: userText });
-      addMessage("assistant", respMsg);
-      speak(respMsg);
+      // Default: Speak Info or Cancel
+      setPendingCartItem(null);
+      addMessage("assistant", result.message);
+      speak(result.spokenText);
     },
-    [addMessage, candidateProducts, language, lastMatchedProduct, pendingCartItem, speak]
+    [addMessage, addToCart, navigate, products, speak]
   );
 
   // Start voice recognition
@@ -423,7 +294,7 @@ export default function VoiceAssistant() {
 
       recognitionRef.current = recognition;
       recognition.start();
-    } catch (err: any) {
+    } catch {
       setErrorMessage("Could not access microphone.");
       setState("error");
     }
@@ -441,31 +312,28 @@ export default function VoiceAssistant() {
   }, []);
 
   // Handle direct Confirmation click
-  const handleConfirmAdd = (pending: { productName: string; size: string; quantity: number }) => {
-    const result = toolHandlerRef.current?.addToCart(pending.productName, lastMatchedProduct, undefined, pending.size, pending.quantity, true, language);
+  const handleConfirmAdd = (pending: { product: Product; productName: string; size: string; quantity: number }) => {
+    addToCart(pending.product.id, pending.size, pending.quantity);
+    resolverRef.current?.getContextManager().clearPendingConfirmation();
     setPendingCartItem(null);
-    if (result?.success) {
-      addMessage("assistant", result.message);
-      speak(result.message);
-    }
-  };
-
-  const handleCancelAdd = () => {
-    setPendingCartItem(null);
-    const msg = getLocalizedResponse("cancel", language);
+    const msg = formatCartCommittedText(pending.product, language);
     addMessage("assistant", msg);
     speak(msg);
   };
 
-  // Toggle Panel Open/Close
+  const handleCancelAdd = () => {
+    const product = pendingCartItem?.product;
+    resolverRef.current?.getContextManager().clearPendingConfirmation();
+    setPendingCartItem(null);
+    const msg = product ? formatCartCancelledText(product, language) : "Cancelled.";
+    addMessage("assistant", msg);
+    speak(msg);
+  };
+
+  // Toggle Panel Open/Close (Instant, no backend latency)
   const togglePanel = () => {
     if (!isOpen) {
       setIsOpen(true);
-      setRealtimeMode("checking");
-      // Check backend realtime session availability
-      fetchRealtimeSessionToken().then((result) => {
-        setRealtimeMode(result.status === "success" ? "active" : "fallback");
-      });
     } else {
       stopListening();
       setIsOpen(false);
@@ -502,9 +370,7 @@ export default function VoiceAssistant() {
               </div>
               <div>
                 <h3 className="text-sm font-semibold tracking-wide text-white">Uphar Voice Assistant</h3>
-                <span className="text-[11px] text-[#B76E79]">
-                  {realtimeMode === "checking" ? "Connecting…" : realtimeMode === "active" ? "✦ Realtime AI Active" : "Browser Speech Mode"}
-                </span>
+                <span className="text-[11px] text-[#B76E79]">✦ Ready to Assist</span>
               </div>
             </div>
             <button
@@ -570,6 +436,43 @@ export default function VoiceAssistant() {
                 >
                   <p className="leading-relaxed">{msg.text}</p>
 
+                  {/* Candidate Product Cards */}
+                  {msg.candidateProducts && msg.candidateProducts.length > 0 && (
+                    <div className="mt-2.5 flex flex-col gap-1.5 border-t border-white/10 pt-2">
+                      {msg.candidateProducts.slice(0, 3).map((prod) => (
+                        <div
+                          key={prod.id}
+                          className="flex items-center justify-between gap-2 rounded-lg bg-white/5 p-2 transition hover:bg-white/10"
+                        >
+                          <div className="flex items-center gap-2 overflow-hidden">
+                            {prod.images?.[0] && (
+                              <img
+                                src={prod.images[0]}
+                                alt={prod.name}
+                                className="h-9 w-9 rounded-md object-cover"
+                              />
+                            )}
+                            <div className="overflow-hidden">
+                              <p className="truncate text-[11px] font-medium text-white">{prod.name}</p>
+                              <p className="text-[10px] text-[#B76E79] font-semibold">{formatPrice(prod.price)}</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigate(`/product/${prod.id}`);
+                              resolverRef.current?.getContextManager().setActiveProduct(prod);
+                            }}
+                            className="flex items-center gap-1 rounded bg-[#B76E79] px-2 py-1 text-[10px] font-semibold text-white transition hover:bg-[#B76E79]/80"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            View
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Interactive Confirmation Action Buttons */}
                   {msg.pendingConfirmation && (
                     <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-2.5">
@@ -579,14 +482,14 @@ export default function VoiceAssistant() {
                         className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#B76E79] px-3 py-1.5 font-semibold text-white transition hover:bg-[#B76E79]/80"
                       >
                         <Check className="h-3.5 w-3.5" />
-                        {getLocalizedResponse("confirm_button", language)}
+                        Yes, Add to Cart
                       </button>
                       <button
                         type="button"
                         onClick={handleCancelAdd}
                         className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
                       >
-                        {getLocalizedResponse("cancel_button", language)}
+                        Cancel
                       </button>
                     </div>
                   )}
@@ -669,9 +572,16 @@ export default function VoiceAssistant() {
                 <>
                   <Mic className="h-4 w-4" />
                   {state === "speaking"
-                    ? (language === "hi" ? "रोकें और बोलें" : language === "hinglish" ? "Roko aur bolo" : "Interrupt & Speak")
-                    : (language === "hi" ? "बोलने के लिए दबाएँ" : language === "hinglish" ? "Bolne ke liye dabao" : "Tap to Speak")
-                  }
+                    ? language === "hi"
+                      ? "रोकें और बोलें"
+                      : language === "hinglish"
+                      ? "Roko aur bolo"
+                      : "Interrupt & Speak"
+                    : language === "hi"
+                    ? "बोलने के लिए दबाएँ"
+                    : language === "hinglish"
+                    ? "Bolne ke liye dabao"
+                    : "Tap to Speak"}
                 </>
               )}
             </button>

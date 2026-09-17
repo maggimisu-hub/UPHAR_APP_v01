@@ -31,14 +31,21 @@ export async function createOrder(
   addressId: string,
   paymentMethod: "cod" | "razorpay",
   items: Array<{ product_id: string; variant_id: string; quantity: number }>,
+  idempotencyKey?: string,
 ): Promise<{ orderId: string; totalAmount: number }> {
+  const payload: Record<string, unknown> = {
+    user_id: userId,
+    address_id: addressId,
+    payment_method: paymentMethod,
+    items,
+  };
+
+  if (idempotencyKey) {
+    payload.idempotency_key = idempotencyKey;
+  }
+
   const { data, error } = await supabase.rpc("create_order_with_items", {
-    p_payload: {
-      user_id: userId,
-      address_id: addressId,
-      payment_method: paymentMethod,
-      items,
-    },
+    p_payload: payload,
   });
 
   if (error) {

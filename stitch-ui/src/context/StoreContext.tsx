@@ -5,6 +5,7 @@ import {
   useMemo,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 
@@ -111,6 +112,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   >({});
   const [lastAdjustmentMessage, setLastAdjustmentMessage] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const isPlacingOrderRef = useRef(false);
 
   useEffect(() => {
     const state = loadState();
@@ -413,6 +415,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const placeOrder = async (shippingDetails: CheckoutFormValues) => {
+    if (isPlacingOrderRef.current) {
+      console.warn("[StoreContext] Order placement already in progress.");
+      return null;
+    }
+
     if (!userId) {
       throw new Error("You must be signed in to place an order");
     }
@@ -421,51 +428,62 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    const addressId = await orderService.createAddressForCheckout(userId, shippingDetails);
+    isPlacingOrderRef.current = true;
+    try {
+      const idempotencyKey =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
-    const orderItems: Array<{ product_id: string; variant_id: string; quantity: number }> = cart.map(
-      (item) => {
-        const variantId = variantIdByProductAndSize[item.productId]?.[item.size];
-        if (!variantId) {
-          throw new Error(
-            "One or more cart variants are invalid. Please remove and re-add items.",
-          );
-        }
+      const addressId = await orderService.createAddressForCheckout(userId, shippingDetails);
 
-        return {
-          product_id: item.productId,
-          variant_id: variantId,
-          quantity: item.quantity,
-        };
-      },
-    );
+      const orderItems: Array<{ product_id: string; variant_id: string; quantity: number }> = cart.map(
+        (item) => {
+          const variantId = variantIdByProductAndSize[item.productId]?.[item.size];
+          if (!variantId) {
+            throw new Error(
+              "One or more cart variants are invalid. Please remove and re-add items.",
+            );
+          }
 
-    const result = await orderService.createOrder(
-      userId,
-      addressId,
-      "cod",
-      orderItems,
-    );
+          return {
+            product_id: item.productId,
+            variant_id: variantId,
+            quantity: item.quantity,
+          };
+        },
+      );
 
-    const shippingCost = 0;
-    const orderSubtotal = Number(result.totalAmount);
+      const result = await orderService.createOrder(
+        userId,
+        addressId,
+        "cod",
+        orderItems,
+        idempotencyKey,
+      );
 
-    const order: Order = {
-      id: result.orderId,
-      items: cart,
-      shipping: shippingDetails,
-      subtotal: orderSubtotal,
-      shippingCost,
-      total: orderSubtotal + shippingCost,
-      orderStatus: "pending",
-      paymentStatus: "cod",
-      createdAt: new Date().toISOString(),
-    };
+      const shippingCost = 0;
+      const orderSubtotal = Number(result.totalAmount);
 
-    setOrders((current) => [order, ...current]);
-    setCart([]);
+      const order: Order = {
+        id: result.orderId,
+        items: cart,
+        shipping: shippingDetails,
+        subtotal: orderSubtotal,
+        shippingCost,
+        total: orderSubtotal + shippingCost,
+        orderStatus: "pending",
+        paymentStatus: "cod",
+        createdAt: new Date().toISOString(),
+      };
 
-    return order;
+      setOrders((current) => [order, ...current]);
+      setCart([]);
+
+      return order;
+    } finally {
+      isPlacingOrderRef.current = false;
+    }
   };
 
   const confirmPayment = (orderId: string) => {

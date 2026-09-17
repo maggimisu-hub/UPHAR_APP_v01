@@ -1,7 +1,19 @@
 import type { Product } from "../types";
+import { supabase } from "../lib/supabaseClient";
+
+// Re-export modular v2.0 voice engine
+export * from "./voice/types";
+export * from "./voice/config";
+export * from "./voice/normalization";
+export * from "./voice/lexicon";
+export * from "./voice/nlu";
+export * from "./voice/catalogIndex";
+export * from "./voice/contextManager";
+export * from "./voice/responses";
+export * from "./voice/voiceResolver";
 
 // ─────────────────────────────────────────────────────
-// Types
+// Legacy Types & Facades (Preserved for compatibility)
 // ─────────────────────────────────────────────────────
 
 export type AssistantLanguage = "en" | "hi" | "hinglish";
@@ -1449,9 +1461,29 @@ export async function fetchRealtimeSessionToken(): Promise<{
   message?: string;
 }> {
   try {
+    let authToken = "";
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      authToken = sessionData?.session?.access_token || "";
+    } catch {
+      // Fallback if getSession fails
+    }
+
+    if (!authToken) {
+      authToken = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || "";
+    }
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (authToken) {
+      headers["Authorization"] = `Bearer ${authToken}`;
+    }
+
     const res = await fetch("/.netlify/functions/realtime-session", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
     });
 
     if (!res.ok) {

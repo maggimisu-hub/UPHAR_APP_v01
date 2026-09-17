@@ -132,9 +132,9 @@ on public.voice_training_rules for all using (true) with check (true);`;
             <Mic className="h-6 w-6" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-primary">Voice AI Agent Training Dashboard</h2>
+            <h2 className="text-xl font-bold text-primary">Voice Vocabulary & Alias Dictionary</h2>
             <p className="text-xs text-primary/70 mt-0.5">
-              Train your voice agent to understand any regional dialect, mispronounced term, or speech-to-text variation (e.g. "siram", "nautanki", "bangles").
+              Manage regional dialect aliases, phonetic transliterations, and speech-to-text vocabulary mappings (e.g. "siram" → "serum", "nautanki" → "dot key").
             </p>
           </div>
         </div>

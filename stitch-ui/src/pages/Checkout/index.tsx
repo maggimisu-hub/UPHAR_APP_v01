@@ -26,6 +26,7 @@ export default function Checkout() {
   const [values, setValues] = useState<CheckoutFormValues>(initialForm);
   const [errors, setErrors] = useState<Partial<Record<keyof CheckoutFormValues, string>>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (authLoading || productsLoading) {
     return (
@@ -79,14 +80,19 @@ export default function Checkout() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitError(null);
+    if (isSubmitting) {
+      return;
+    }
     if (!validate()) {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const order = await placeOrder(values);
       if (!order) {
         setSubmitError("Failed to initiate order. Please try again.");
+        setIsSubmitting(false);
         return;
       }
 
@@ -94,6 +100,7 @@ export default function Checkout() {
     } catch (error) {
       console.error("Order placement failed", error);
       setSubmitError(mapCheckoutError(error));
+      setIsSubmitting(false);
     }
   };
 
@@ -139,8 +146,8 @@ export default function Checkout() {
             <Input label="City" value={values.city} onChange={(event) => updateField("city", event.target.value)} error={errors.city} placeholder="City" />
             <Input label="Pincode" value={values.pincode} onChange={(event) => updateField("pincode", event.target.value)} error={errors.pincode} placeholder="6 digit pincode" inputMode="numeric" />
           </div>
-          <Button type="submit" className="w-full">
-            Place pickup order
+          <Button type="submit" className="w-full" disabled={isSubmitting || authLoading || productsLoading}>
+            {isSubmitting ? "Placing order..." : "Place pickup order"}
           </Button>
         </form>
 
