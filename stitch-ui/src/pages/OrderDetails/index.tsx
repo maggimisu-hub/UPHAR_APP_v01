@@ -135,7 +135,7 @@ export default function OrderDetails() {
         <div className="mt-4 space-y-3 text-sm">
           <div>
             <p className="text-muted">Pickup Location</p>
-            <p className="text-primary font-medium">{TAKEAWAY_STORE.name}, {TAKEAWAY_STORE.city}</p>
+            <p className="text-primary font-medium">{TAKEAWAY_STORE.address}</p>
           </div>
           <div>
             <p className="text-muted">Timing Window</p>
@@ -143,7 +143,7 @@ export default function OrderDetails() {
           </div>
           <div>
             <p className="text-muted">Store Contact</p>
-            <p className="text-primary font-medium">{TAKEAWAY_STORE.phone}</p>
+            <p className="text-primary font-medium"><a href="tel:+919168577390" className="underline hover:text-accent">{TAKEAWAY_STORE.phone}</a> / <a href="tel:+917769877390" className="underline hover:text-accent">{TAKEAWAY_STORE.secondaryPhone}</a></p>
           </div>
         </div>
         <div className="mt-5 rounded-xl bg-accent/10 px-4 py-3">
@@ -187,9 +187,9 @@ export default function OrderDetails() {
       <div className="mt-6 rounded-[28px] border border-primary/15 bg-ivory p-5 text-sm text-muted">
         <p className="text-xs uppercase tracking-[0.24em] font-semibold text-primary">Store pickup location</p>
         <p className="mt-3 font-medium text-primary">{TAKEAWAY_STORE.name}</p>
-        <p className="mt-1">{TAKEAWAY_STORE.city}</p>
+        <p className="mt-1">{TAKEAWAY_STORE.address}</p>
         <p className="mt-1">Pickup Hours: {TAKEAWAY_STORE.pickupWindow}</p>
-        <p className="mt-1">Store Phone: {TAKEAWAY_STORE.phone}</p>
+        <p className="mt-1">Store Phone: <a href="tel:+919168577390" className="underline hover:text-primary">{TAKEAWAY_STORE.phone}</a> / <a href="tel:+917769877390" className="underline hover:text-primary">{TAKEAWAY_STORE.secondaryPhone}</a></p>
       </div>
 
       <div className="mt-6 rounded-[28px] border border-primary/15 bg-ivory p-5 text-sm text-muted">

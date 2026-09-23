@@ -21,7 +21,7 @@ export default function OrderSuccess() {
         <div className="mt-4 space-y-3 text-sm">
           <div>
             <p className="text-muted">Pickup Location</p>
-            <p className="text-primary font-medium">{TAKEAWAY_STORE.name}, {TAKEAWAY_STORE.city}</p>
+            <p className="text-primary font-medium">{TAKEAWAY_STORE.address}</p>
           </div>
           <div>
             <p className="text-muted">Timing Window</p>
@@ -29,7 +29,7 @@ export default function OrderSuccess() {
           </div>
           <div>
             <p className="text-muted">Store Contact</p>
-            <p className="text-primary font-medium">{TAKEAWAY_STORE.phone}</p>
+            <p className="text-primary font-medium"><a href="tel:+919168577390" className="underline hover:text-accent">{TAKEAWAY_STORE.phone}</a> / <a href="tel:+917769877390" className="underline hover:text-accent">{TAKEAWAY_STORE.secondaryPhone}</a></p>
           </div>
         </div>
         <div className="mt-5 rounded-xl bg-accent/10 px-4 py-3">

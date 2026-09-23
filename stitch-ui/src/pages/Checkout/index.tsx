@@ -126,9 +126,9 @@ export default function Checkout() {
 
           <div className="rounded-[24px] border border-accent/20 bg-accent/5 p-5 text-sm">
             <p className="text-[11px] uppercase tracking-[0.24em] text-accent font-semibold">Store pickup location</p>
-            <p className="mt-2 font-medium text-primary">{TAKEAWAY_STORE.name}, {TAKEAWAY_STORE.city}</p>
+            <p className="mt-2 font-medium text-primary">{TAKEAWAY_STORE.address}</p>
             <p className="mt-1 text-xs text-muted">Hours: {TAKEAWAY_STORE.pickupWindow}</p>
-            <p className="mt-1 text-xs text-muted">Store Contact: {TAKEAWAY_STORE.phone}</p>
+            <p className="mt-1 text-xs text-muted">Store Contact: <a href="tel:+919168577390" className="underline hover:text-primary">{TAKEAWAY_STORE.phone}</a> / <a href="tel:+917769877390" className="underline hover:text-primary">{TAKEAWAY_STORE.secondaryPhone}</a></p>
             <p className="mt-3 text-xs font-medium text-primary">Pay in person when you collect your order. We will notify you once it is ready.</p>
           </div>
 

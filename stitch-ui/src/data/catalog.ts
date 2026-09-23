@@ -137,7 +137,7 @@ export const starterAddresses: Address[] = [
     id: "addr-home",
     label: "Home",
     name: "Aarav Mehta",
-    phone: "9876543210",
+    phone: "9168577390",
     line1: "22 Heritage Lane, Civil Lines",
     city: "Jaipur",
     state: "Rajasthan",

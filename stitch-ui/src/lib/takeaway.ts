@@ -1,9 +1,11 @@
 import type { Order } from "../types";
 
 export const TAKEAWAY_STORE = {
-  name: "Uphar Flagship Store",
-  city: "Delhi",
-  phone: "+91 98765 43210",
+  name: "Uphar Shop",
+  address: "Uphar Shop, New Market, Post P.T.P.S, Patratu, Ramgarh, Jharkhand-829119",
+  city: "Patratu, Ramgarh, Jharkhand",
+  phone: "+91 91685 77390",
+  secondaryPhone: "+91 77698 77390",
   pickupWindow: "11:00 AM - 7:00 PM (Mon-Sat)",
 };
 
