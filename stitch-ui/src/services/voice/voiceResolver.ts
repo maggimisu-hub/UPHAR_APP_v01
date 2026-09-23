@@ -73,6 +73,9 @@ export class VoiceResolver {
       case "MORE_RESULTS":
         return this.handleMoreResults(language);
 
+      case "NEW_ARRIVALS":
+        return this.handleNewArrivals(language);
+
       case "OPEN_PRODUCT":
         return this.handleOpenProduct(entities, language);
 
@@ -176,6 +179,41 @@ export class VoiceResolver {
       action: "DISPLAY_PRODUCTS",
       intent: "MORE_RESULTS",
       candidateProducts: currentBatch,
+      message: msg,
+      spokenText: msg,
+      confidence: "HIGH",
+    };
+  }
+
+  private handleNewArrivals(lang: "en" | "hi" | "hinglish"): VoiceActionResult {
+    const products = this.catalogIndex.getProducts();
+    const newArrivals = products.filter((p) => Boolean(p.newArrival));
+
+    if (newArrivals.length === 0) {
+      const msg =
+        lang === "hi"
+          ? "फ़िलहाल कोई नए प्रोडक्ट्स उपलब्ध नहीं हैं।"
+          : "There are currently no new arrivals available.";
+      return {
+        action: "SPEAK_INFO",
+        intent: "NEW_ARRIVALS",
+        message: msg,
+        spokenText: msg,
+        confidence: "HIGH",
+      };
+    }
+
+    this.contextManager.setCandidates(newArrivals);
+    const names = newArrivals.slice(0, 3).map((p) => p.name).join(", ");
+    const msg =
+      lang === "hi"
+        ? `नए अराइवल्स में ये प्रोडक्ट्स हैं: ${names}।`
+        : `Here are the latest new arrivals: ${names}.`;
+
+    return {
+      action: "DISPLAY_PRODUCTS",
+      intent: "NEW_ARRIVALS",
+      candidateProducts: newArrivals.slice(0, 3),
       message: msg,
       spokenText: msg,
       confidence: "HIGH",

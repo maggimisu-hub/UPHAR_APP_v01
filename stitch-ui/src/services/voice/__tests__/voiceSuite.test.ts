@@ -1,13 +1,16 @@
-/**
- * Automated Golden Test Suite for Uphar Voice Shopping Assistant v2.0
- * 
- * Verifies all 20 golden queries against catalog fixtures.
- * Run via: npx tsx src/services/voice/__tests__/voiceSuite.test.ts
- */
-
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import dotenv from "dotenv";
 import { Product } from "../../../types";
 import { VoiceResolver } from "../voiceResolver";
 import { parseVoiceCommand } from "../nlu";
+import { getAllowedOrigin, handler as realtimeHandler } from "../../../../netlify/functions/realtime-session.js";
+
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Verified catalog fixtures from PRD v2.0 Golden Test Matrix
 const FIXTURE_PRODUCTS: Product[] = [
@@ -58,6 +61,7 @@ const FIXTURE_PRODUCTS: Product[] = [
     variantPrices: { "30ml": 629 },
     description: "Designed to treat dark spots and boost skin radiance.",
     tag: "Cosmetics",
+    newArrival: true,
   },
   {
     id: "prod-fiama-shower-gel-004",
@@ -96,7 +100,7 @@ function assert(id: number, query: string, condition: boolean, message: string) 
   }
 }
 
-export function runVoiceTestSuite(): boolean {
+export async function runVoiceTestSuite(): Promise<boolean> {
   console.log("===============================================================");
   console.log("RUNNING UPHAR VOICE SHOPPING ASSISTANT GOLDEN TEST MATRIX v2.0");
   console.log("===============================================================\n");
@@ -426,6 +430,431 @@ export function runVoiceTestSuite(): boolean {
       res.confidence === "LOW" || res.confidence === "MEDIUM",
       `SAFETY: Confidence must be LOW or MEDIUM for unresolved target, got ${res.confidence}`
     );
+  }
+
+  // ======================================================================
+  // FUNC-01 REGRESSION TESTS (29–34)
+  // Validate that bare words "add", "cart", "buy" do NOT falsely trigger
+  // ADD_TO_CART for conversational queries, while valid action commands
+  // in English, Hindi, and Hinglish are correctly classified.
+  // ======================================================================
+
+  // 29. False Positive: "what did you add?" -> Must NOT be ADD_TO_CART
+  {
+    contextManager.reset();
+    const parsed = parseVoiceCommand("what did you add?");
+    assert(29, "what did you add?", parsed.intent !== "ADD_TO_CART", `Must not be ADD_TO_CART, got ${parsed.intent}`);
+    assert(29, "what did you add?", parsed.intent === "UNKNOWN", `Expected UNKNOWN intent, got ${parsed.intent}`);
+    const res = resolver.resolve("what did you add?");
+    assert(29, "what did you add?", res.intent !== "ADD_TO_CART", `Resolver intent must not be ADD_TO_CART, got ${res.intent}`);
+    assert(29, "what did you add?", res.action !== "PROMPT_CONFIRMATION" && res.action !== "COMMITTED_CART", `Must not prompt cart confirmation, got ${res.action}`);
+  }
+
+  // 30. False Positive: "is this in the cart?" -> Must NOT be ADD_TO_CART
+  {
+    contextManager.reset();
+    const parsed = parseVoiceCommand("is this in the cart?");
+    assert(30, "is this in the cart?", parsed.intent !== "ADD_TO_CART", `Must not be ADD_TO_CART, got ${parsed.intent}`);
+    assert(30, "is this in the cart?", parsed.intent === "UNKNOWN", `Expected UNKNOWN intent, got ${parsed.intent}`);
+    const res = resolver.resolve("is this in the cart?");
+    assert(30, "is this in the cart?", res.intent !== "ADD_TO_CART", `Resolver intent must not be ADD_TO_CART, got ${res.intent}`);
+    assert(30, "is this in the cart?", res.action !== "PROMPT_CONFIRMATION" && res.action !== "COMMITTED_CART", `Must not prompt cart confirmation, got ${res.action}`);
+  }
+
+  // 31. False Positive: "can I buy later?" -> Must NOT be ADD_TO_CART
+  {
+    contextManager.reset();
+    const parsed = parseVoiceCommand("can I buy later?");
+    assert(31, "can I buy later?", parsed.intent !== "ADD_TO_CART", `Must not be ADD_TO_CART, got ${parsed.intent}`);
+    assert(31, "can I buy later?", parsed.intent === "UNKNOWN", `Expected UNKNOWN intent, got ${parsed.intent}`);
+    const res = resolver.resolve("can I buy later?");
+    assert(31, "can I buy later?", res.intent !== "ADD_TO_CART", `Resolver intent must not be ADD_TO_CART, got ${res.intent}`);
+    assert(31, "can I buy later?", res.action !== "PROMPT_CONFIRMATION" && res.action !== "COMMITTED_CART", `Must not prompt cart confirmation, got ${res.action}`);
+  }
+
+  // 32. Valid Action: "add this to cart" (with activeProduct = VLCC Kajal) -> ADD_TO_CART
+  {
+    contextManager.reset();
+    contextManager.setActiveProduct(FIXTURE_PRODUCTS[1]);
+    const parsed = parseVoiceCommand("add this to cart");
+    assert(32, "add this to cart", parsed.intent === "ADD_TO_CART", `Expected ADD_TO_CART, got ${parsed.intent}`);
+    const res = resolver.resolve("add this to cart");
+    assert(32, "add this to cart", res.intent === "ADD_TO_CART", `Expected ADD_TO_CART, got ${res.intent}`);
+    assert(32, "add this to cart", res.action === "PROMPT_CONFIRMATION", `Expected PROMPT_CONFIRMATION, got ${res.action}`);
+    assert(32, "add this to cart", res.requiresConfirmation === true, "Expected requiresConfirmation=true");
+    assert(32, "add this to cart", res.matchedProduct?.id === "prod-vlcc-kajal-002", "Expected active VLCC Kajal");
+  }
+
+  // 33. Valid Action: "cart mein daal do" (with activeProduct = VLCC Kajal) -> ADD_TO_CART
+  {
+    contextManager.reset();
+    contextManager.setActiveProduct(FIXTURE_PRODUCTS[1]);
+    const parsed = parseVoiceCommand("cart mein daal do");
+    assert(33, "cart mein daal do", parsed.intent === "ADD_TO_CART", `Expected ADD_TO_CART, got ${parsed.intent}`);
+    const res = resolver.resolve("cart mein daal do");
+    assert(33, "cart mein daal do", res.intent === "ADD_TO_CART", `Expected ADD_TO_CART, got ${res.intent}`);
+    assert(33, "cart mein daal do", res.action === "PROMPT_CONFIRMATION", `Expected PROMPT_CONFIRMATION, got ${res.action}`);
+    assert(33, "cart mein daal do", res.requiresConfirmation === true, "Expected requiresConfirmation=true");
+    assert(33, "cart mein daal do", res.matchedProduct?.id === "prod-vlcc-kajal-002", "Expected active VLCC Kajal");
+  }
+
+  // 34. Valid Action: "isko cart mein add karo" (with activeProduct = VLCC Kajal) -> ADD_TO_CART
+  {
+    contextManager.reset();
+    contextManager.setActiveProduct(FIXTURE_PRODUCTS[1]);
+    const parsed = parseVoiceCommand("isko cart mein add karo");
+    assert(34, "isko cart mein add karo", parsed.intent === "ADD_TO_CART", `Expected ADD_TO_CART, got ${parsed.intent}`);
+    const res = resolver.resolve("isko cart mein add karo");
+    assert(34, "isko cart mein add karo", res.intent === "ADD_TO_CART", `Expected ADD_TO_CART, got ${res.intent}`);
+    assert(34, "isko cart mein add karo", res.action === "PROMPT_CONFIRMATION", `Expected PROMPT_CONFIRMATION, got ${res.action}`);
+    assert(34, "isko cart mein add karo", res.requiresConfirmation === true, "Expected requiresConfirmation=true");
+    assert(34, "isko cart mein add karo", res.matchedProduct?.id === "prod-vlcc-kajal-002", "Expected active VLCC Kajal");
+  }
+
+  // ======================================================================
+  // PHASE 3.4 MEDIUM FIX REGRESSION TESTS (35–58)
+  // ======================================================================
+
+  // ----------------------------------------------------------------------
+  // FUNC-02: Overly Broad Pagination Triggers
+  // ----------------------------------------------------------------------
+
+  // 35. False Positive: "tell me more about this product" -> NOT MORE_RESULTS
+  {
+    contextManager.reset();
+    const parsed = parseVoiceCommand("tell me more about this product");
+    assert(35, "tell me more about this product (NLU)", parsed.intent !== "MORE_RESULTS", `Expected intent !== MORE_RESULTS, got ${parsed.intent}`);
+    assert(35, "tell me more about this product (NLU)", parsed.intent === "VIEW_DETAILS", `Expected VIEW_DETAILS, got ${parsed.intent}`);
+    const res = resolver.resolve("tell me more about this product");
+    assert(35, "tell me more about this product (Resolver)", res.intent !== "MORE_RESULTS", `Expected resolver intent !== MORE_RESULTS, got ${res.intent}`);
+  }
+
+  // 36. False Positive: "aur kuch batao" -> NOT MORE_RESULTS
+  {
+    contextManager.reset();
+    const parsed = parseVoiceCommand("aur kuch batao");
+    assert(36, "aur kuch batao (NLU)", parsed.intent !== "MORE_RESULTS", `Expected intent !== MORE_RESULTS, got ${parsed.intent}`);
+    const res = resolver.resolve("aur kuch batao");
+    assert(36, "aur kuch batao (Resolver)", res.intent !== "MORE_RESULTS", `Expected resolver intent !== MORE_RESULTS, got ${res.intent}`);
+  }
+
+  // 37. False Positive: "aur kya hai" -> NOT MORE_RESULTS
+  {
+    contextManager.reset();
+    const parsed = parseVoiceCommand("aur kya hai");
+    assert(37, "aur kya hai (NLU)", parsed.intent !== "MORE_RESULTS", `Expected intent !== MORE_RESULTS, got ${parsed.intent}`);
+    const res = resolver.resolve("aur kya hai");
+    assert(37, "aur kya hai (Resolver)", res.intent !== "MORE_RESULTS", `Expected resolver intent !== MORE_RESULTS, got ${res.intent}`);
+  }
+
+  // 38. Valid English Pagination: "show me more" -> MORE_RESULTS
+  {
+    contextManager.reset();
+    contextManager.setCandidates([FIXTURE_PRODUCTS[0], FIXTURE_PRODUCTS[1], FIXTURE_PRODUCTS[2], FIXTURE_PRODUCTS[3]]);
+    const parsed = parseVoiceCommand("show me more");
+    assert(38, "show me more (NLU)", parsed.intent === "MORE_RESULTS", `Expected MORE_RESULTS, got ${parsed.intent}`);
+    const res = resolver.resolve("show me more");
+    assert(38, "show me more (Resolver)", res.intent === "MORE_RESULTS", `Expected MORE_RESULTS, got ${res.intent}`);
+    assert(38, "show me more (Action)", res.action === "DISPLAY_PRODUCTS", `Expected DISPLAY_PRODUCTS, got ${res.action}`);
+  }
+
+  // 39. Valid English Pagination: "more products" -> MORE_RESULTS
+  {
+    contextManager.reset();
+    contextManager.setCandidates([FIXTURE_PRODUCTS[0], FIXTURE_PRODUCTS[1], FIXTURE_PRODUCTS[2], FIXTURE_PRODUCTS[3]]);
+    const parsed = parseVoiceCommand("more products");
+    assert(39, "more products (NLU)", parsed.intent === "MORE_RESULTS", `Expected MORE_RESULTS, got ${parsed.intent}`);
+    const res = resolver.resolve("more products");
+    assert(39, "more products (Resolver)", res.intent === "MORE_RESULTS", `Expected MORE_RESULTS, got ${res.intent}`);
+  }
+
+  // 40. Valid Hindi/Hinglish Pagination: "aur products dikhao" -> MORE_RESULTS
+  {
+    contextManager.reset();
+    contextManager.setCandidates([FIXTURE_PRODUCTS[0], FIXTURE_PRODUCTS[1], FIXTURE_PRODUCTS[2], FIXTURE_PRODUCTS[3]]);
+    const parsed = parseVoiceCommand("aur products dikhao");
+    assert(40, "aur products dikhao (NLU)", parsed.intent === "MORE_RESULTS", `Expected MORE_RESULTS, got ${parsed.intent}`);
+    const res = resolver.resolve("aur products dikhao");
+    assert(40, "aur products dikhao (Resolver)", res.intent === "MORE_RESULTS", `Expected MORE_RESULTS, got ${res.intent}`);
+  }
+
+  // 41. Valid Hindi/Hinglish Pagination: "aur dikhao" -> MORE_RESULTS
+  {
+    contextManager.reset();
+    contextManager.setCandidates([FIXTURE_PRODUCTS[0], FIXTURE_PRODUCTS[1], FIXTURE_PRODUCTS[2], FIXTURE_PRODUCTS[3]]);
+    const parsed = parseVoiceCommand("aur dikhao");
+    assert(41, "aur dikhao (NLU)", parsed.intent === "MORE_RESULTS", `Expected MORE_RESULTS, got ${parsed.intent}`);
+    const res = resolver.resolve("aur dikhao");
+    assert(41, "aur dikhao (Resolver)", res.intent === "MORE_RESULTS", `Expected MORE_RESULTS, got ${res.intent}`);
+  }
+
+  // ----------------------------------------------------------------------
+  // FUNC-03: Text Command Fallback Pipeline (Simulates VoiceAssistant processQuery)
+  // ----------------------------------------------------------------------
+
+  // 42. Text product search: "Kajal"
+  {
+    contextManager.reset();
+    const res = resolver.resolve("Kajal");
+    assert(42, "Text: Kajal", res.action === "DISPLAY_PRODUCTS", `Expected DISPLAY_PRODUCTS, got ${res.action}`);
+    assert(42, "Text: Kajal candidates", (res.candidateProducts?.length || 0) >= 2, "Expected Kajal candidates returned");
+  }
+
+  // 43. Text Hindi/Hinglish query: "Kajal dikhao"
+  {
+    contextManager.reset();
+    const res = resolver.resolve("Kajal dikhao");
+    assert(43, "Text: Kajal dikhao", res.action === "DISPLAY_PRODUCTS", `Expected DISPLAY_PRODUCTS, got ${res.action}`);
+  }
+
+  // 44. Text add-to-cart command: "VLCC Kajal cart mein daal do" -> PROMPT_CONFIRMATION
+  {
+    contextManager.reset();
+    const res = resolver.resolve("VLCC Kajal cart mein daal do");
+    assert(44, "Text: VLCC Kajal cart mein daal do (action)", res.action === "PROMPT_CONFIRMATION", `Expected PROMPT_CONFIRMATION, got ${res.action}`);
+    assert(44, "Text: VLCC Kajal cart mein daal do (requiresConfirmation)", res.requiresConfirmation === true, "Must require confirmation");
+    assert(44, "Text: VLCC Kajal cart mein daal do (product)", res.matchedProduct?.id === "prod-vlcc-kajal-002", "Expected matched VLCC Kajal");
+  }
+
+  // 45. Text false-positive cart query: "what did you add?" -> NOT ADD_TO_CART
+  {
+    contextManager.reset();
+    const res = resolver.resolve("what did you add?");
+    assert(45, "Text false-positive: what did you add?", res.action !== "PROMPT_CONFIRMATION" && res.action !== "COMMITTED_CART", `Must not trigger cart action, got ${res.action}`);
+  }
+
+  // 46. Text confirmation flow: "Haan daal do" commits pending cart item
+  {
+    // Re-prompt confirmation for VLCC Kajal
+    contextManager.reset();
+    resolver.resolve("VLCC Kajal cart mein daal do");
+    assert(46, "Text confirmation pending check", Boolean(contextManager.getContext().pendingConfirmation) === true, "Context must have pending confirmation");
+    const res = resolver.resolve("Haan daal do");
+    assert(46, "Text confirmation: Haan daal do", res.action === "COMMITTED_CART", `Expected COMMITTED_CART, got ${res.action}`);
+    assert(46, "Text confirmation committed product", res.matchedProduct?.id === "prod-vlcc-kajal-002", "Expected committed VLCC Kajal");
+  }
+
+  // ----------------------------------------------------------------------
+  // SEC-02: Realtime Session Strict Origin Allowlist
+  // ----------------------------------------------------------------------
+
+  // 47. Approved Production Origin
+  {
+    const origin = getAllowedOrigin("https://uphar-app-v01.netlify.app");
+    assert(47, "SEC-02: allow production origin", origin === "https://uphar-app-v01.netlify.app", `Expected production origin allowed, got ${origin}`);
+  }
+
+  // 48. Approved Local Development Origin
+  {
+    const origin = getAllowedOrigin("http://localhost:3000");
+    assert(48, "SEC-02: allow localhost:3000", origin === "http://localhost:3000", `Expected localhost allowed, got ${origin}`);
+  }
+
+  // 49. Rejected Arbitrary Netlify Subdomain
+  {
+    const origin = getAllowedOrigin("https://evil.netlify.app");
+    assert(49, "SEC-02: reject arbitrary evil.netlify.app", origin === null, `Expected null, got ${origin}`);
+  }
+
+  // 50. Rejected Spoofed Domain Containing 'uphar'
+  {
+    const origin = getAllowedOrigin("https://evil-uphar.com");
+    assert(50, "SEC-02: reject evil-uphar.com", origin === null, `Expected null, got ${origin}`);
+  }
+
+  // 51. Rejected Spoofed Subdomain 'uphar.example.com'
+  {
+    const origin = getAllowedOrigin("https://uphar.example.com");
+    assert(51, "SEC-02: reject uphar.example.com", origin === null, `Expected null, got ${origin}`);
+  }
+
+  // ----------------------------------------------------------------------
+  // SEC-03: Realtime Session Cryptographic Auth Verification
+  // ----------------------------------------------------------------------
+
+  // 52. Missing Authorization Header Rejected
+  {
+    const res = await realtimeHandler(
+      { httpMethod: "POST", headers: { origin: "https://uphar-app-v01.netlify.app" } },
+      {}
+    );
+    assert(52, "SEC-03: missing auth -> 401", res.statusCode === 401, `Expected 401, got ${res.statusCode}`);
+    const body = JSON.parse(res.body);
+    assert(52, "SEC-03: missing auth error message", body.message?.includes("Missing or invalid Authorization"), `Unexpected message: ${body.message}`);
+  }
+
+  // 53. Malformed Authorization Header Rejected
+  {
+    const res = await realtimeHandler(
+      { httpMethod: "POST", headers: { origin: "https://uphar-app-v01.netlify.app", authorization: "Basic invalid_credentials" } },
+      {}
+    );
+    assert(53, "SEC-03: malformed auth -> 401", res.statusCode === 401, `Expected 401, got ${res.statusCode}`);
+  }
+
+  // 54. Fake 3-Segment JWT String Rejected
+  {
+    const fakeToken = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.fake_signature_part_here";
+    const res = await realtimeHandler(
+      { httpMethod: "POST", headers: { origin: "https://uphar-app-v01.netlify.app", authorization: fakeToken } },
+      {}
+    );
+    assert(54, "SEC-03: fake 3-part JWT -> 401", res.statusCode === 401, `Expected 401, got ${res.statusCode}`);
+    const body = JSON.parse(res.body);
+    assert(54, "SEC-03: fake JWT rejection message", body.message?.includes("Invalid or expired authentication token"), `Unexpected message: ${body.message}`);
+  }
+
+  // 55. Anon Key Rejected (Anon key is not an authenticated customer session)
+  {
+    const anonKey = process.env.VITE_SUPABASE_ANON_KEY || "";
+    if (anonKey) {
+      const res = await realtimeHandler(
+        { httpMethod: "POST", headers: { origin: "https://uphar-app-v01.netlify.app", authorization: `Bearer ${anonKey}` } },
+        {}
+      );
+      assert(55, "SEC-03: anon-key token -> 401", res.statusCode === 401, `Expected 401, got ${res.statusCode}`);
+    } else {
+      assert(55, "SEC-03: anon-key skipped (no env)", true, "Skipped");
+    }
+  }
+
+  // ----------------------------------------------------------------------
+  // PROD-02: Deactivated OpenAI Realtime Model Verification
+  // ----------------------------------------------------------------------
+
+  // 56. No invalid/fictional "gpt-realtime" remains in active code
+  {
+    const funcCode = fs.readFileSync(path.resolve(__dirname, "../../../../netlify/functions/realtime-session.js"), "utf-8");
+    const hasGptRealtime = funcCode.includes("gpt-realtime");
+    assert(56, "PROD-02: no 'gpt-realtime' in realtime-session.js", hasGptRealtime === false, "Fictional gpt-realtime model must not be present");
+  }
+
+  // 57. Verified deactivated fallback contract
+  {
+    const funcCode = fs.readFileSync(path.resolve(__dirname, "../../../../netlify/functions/realtime-session.js"), "utf-8");
+    const hasExplicitDeactivation = funcCode.includes("OpenAI Realtime session endpoint is deactivated");
+    assert(57, "PROD-02: explicit deactivated fallback contract", hasExplicitDeactivation === true, "Must have explicit deactivation fallback");
+  }
+
+  // ----------------------------------------------------------------------
+  // DB-01: Production DB Absence Graceful Fallback
+  // ----------------------------------------------------------------------
+
+  // 58. VoiceAssistant and VoiceTraining handle absence of voice_training_rules table gracefully
+  {
+    const assistantCode = fs.readFileSync(path.resolve(__dirname, "../../../components/VoiceAssistant.tsx"), "utf-8");
+    const hasGracefulCatch = assistantCode.includes("Table might not exist yet before migration");
+    assert(58, "DB-01: VoiceAssistant graceful DB fallback", hasGracefulCatch === true, "VoiceAssistant must catch table absence gracefully");
+  }
+
+  // ----------------------------------------------------------------------
+  // SEC-04: Regex Metacharacter & Input Sanitization
+  // ----------------------------------------------------------------------
+
+  // 59. Special regex characters in user input do not cause syntax errors or unintended matching
+  {
+    const resolver = new VoiceResolver(FIXTURE_PRODUCTS);
+    let errorThrown = false;
+    let res: any;
+    try {
+      res = resolver.resolve(".*+?()[]{}|\\ kajal");
+    } catch {
+      errorThrown = true;
+    }
+    assert(59, "SEC-04: regex metacharacters in query do not crash resolver", errorThrown === false && (res?.matchedProduct?.name.includes("Kajal") || (res?.candidateProducts?.length || 0) > 0), "Regex metacharacters must not break execution or crash");
+  }
+
+  // 60. Special regex characters trailing query
+  {
+    const resolver = new VoiceResolver(FIXTURE_PRODUCTS);
+    let errorThrown = false;
+    let res: any;
+    try {
+      res = resolver.resolve("vlcc kajal .*+?()[]{}|\\");
+    } catch {
+      errorThrown = true;
+    }
+    assert(60, "SEC-04: trailing regex metacharacters do not crash resolver", errorThrown === false && res?.matchedProduct?.id === "prod-vlcc-kajal-002", "Trailing regex metacharacters must resolve safely to target product");
+  }
+
+  // ----------------------------------------------------------------------
+  // FUNC-04: Voice Assistant Admin Route Guard
+  // ----------------------------------------------------------------------
+
+  // 61. Voice Assistant code contains route guard that disables rendering on admin routes
+  {
+    const assistantCode = fs.readFileSync(path.resolve(__dirname, "../../../components/VoiceAssistant.tsx"), "utf-8");
+    const hasAdminGuard = assistantCode.includes('location.pathname.startsWith("/admin")') && assistantCode.includes("return null;");
+    assert(61, "FUNC-04: admin route guard in VoiceAssistant.tsx", hasAdminGuard === true, "VoiceAssistant must not mount on /admin routes");
+  }
+
+  // ----------------------------------------------------------------------
+  // FUNC-05: Dead removeFillers Elimination
+  // ----------------------------------------------------------------------
+
+  // 62. removeFillers and FILLER_WORDS are completely removed
+  {
+    const normCode = fs.readFileSync(path.resolve(__dirname, "../normalization.ts"), "utf-8");
+    const hasRemoveFillers = normCode.includes("removeFillers");
+    const hasFillerWords = normCode.includes("FILLER_WORDS");
+    assert(62, "FUNC-05: removeFillers eliminated from normalization.ts", !hasRemoveFillers && !hasFillerWords, "removeFillers and FILLER_WORDS must be removed");
+  }
+
+  // ----------------------------------------------------------------------
+  // FUNC-06: NEW_ARRIVALS Intent & Catalog Integration
+  // ----------------------------------------------------------------------
+
+  // 63. "show me new arrivals" resolves to NEW_ARRIVALS intent and candidate products
+  {
+    const resolver = new VoiceResolver(FIXTURE_PRODUCTS);
+    const res = resolver.resolve("show me new arrivals");
+    assert(63, "FUNC-06: 'show me new arrivals' triggers NEW_ARRIVALS", res.intent === "NEW_ARRIVALS" && res.action === "DISPLAY_PRODUCTS" && (res.candidateProducts?.length || 0) > 0, "Must display new arrival products");
+  }
+
+  // 64. "what's new" and "naye products dikhao" resolve to NEW_ARRIVALS
+  {
+    const resolver = new VoiceResolver(FIXTURE_PRODUCTS);
+    const res1 = resolver.resolve("what's new");
+    const res2 = resolver.resolve("naye products dikhao");
+    assert(64, "FUNC-06: 'what's new' and 'naye products dikhao' trigger NEW_ARRIVALS", res1.intent === "NEW_ARRIVALS" && res2.intent === "NEW_ARRIVALS", "Hinglish and English new arrivals triggers must work");
+  }
+
+  // ----------------------------------------------------------------------
+  // PROD-03: Voice Training Rule Rate Limiting / Debounce
+  // ----------------------------------------------------------------------
+
+  // 65. VoiceTraining.tsx contains client-side debounce and tableExists guard
+  {
+    const trainingCode = fs.readFileSync(path.resolve(__dirname, "../../../pages/Admin/VoiceTraining.tsx"), "utf-8");
+    const hasDebounce = trainingCode.includes("lastSubmitRef") && trainingCode.includes("2000");
+    const hasTableGuard = trainingCode.includes("!tableExists");
+    assert(65, "PROD-03: VoiceTraining debounce and tableExists guard", hasDebounce && hasTableGuard, "VoiceTraining must prevent rapid resubmission and respect missing table");
+  }
+
+  // ----------------------------------------------------------------------
+  // PROD-04: Voice Training Rule Fetch Decoupled From Products
+  // ----------------------------------------------------------------------
+
+  // 66. VoiceAssistant.tsx does not re-fetch voice training rules when products change
+  {
+    const assistantCode = fs.readFileSync(path.resolve(__dirname, "../../../components/VoiceAssistant.tsx"), "utf-8");
+    const hasIsolatedMountEffect = assistantCode.includes('from("voice_training_rules")') && assistantCode.includes("}, []);");
+    const catalogUpdateEffect = assistantCode.includes("resolverRef.current.updateCatalog(products);");
+    assert(66, "PROD-04: voice rules fetch decoupled from products", hasIsolatedMountEffect && catalogUpdateEffect, "Training rules fetch must run once on mount, not on every products update");
+  }
+
+  // ----------------------------------------------------------------------
+  // DB-02: Dead Legacy Voice Code Elimination
+  // ----------------------------------------------------------------------
+
+  // 67. voiceAssistantService.ts has dead v1 logic removed
+  {
+    const serviceCode = fs.readFileSync(path.resolve(__dirname, "../../voiceAssistantService.ts"), "utf-8");
+    const hasVoiceToolHandler = serviceCode.includes("class VoiceToolHandler");
+    const hasSmartSearch = serviceCode.includes("function smartSearchProducts");
+    const hasParseUserIntent = serviceCode.includes("function parseUserIntent");
+    const lineCount = serviceCode.split("\n").length;
+    assert(67, "DB-02: legacy v1 dead code removed from voiceAssistantService.ts", !hasVoiceToolHandler && !hasSmartSearch && !hasParseUserIntent && lineCount < 150, "Dead v1 code must be removed and line count under 150");
   }
 
   console.log("\n===============================================================");

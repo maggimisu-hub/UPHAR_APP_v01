@@ -90,6 +90,10 @@ export class CatalogIndex {
     this.products = products;
   }
 
+  public getProducts(): Product[] {
+    return this.products;
+  }
+
   public setConfig(config: VoiceMatchConfig): void {
     this.config = config;
   }

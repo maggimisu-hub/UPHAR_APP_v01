@@ -9,4 +9,6 @@ coverage/
 scratch/
 .netlify/
 live_index.*
-
+tests/load/
+supabase/.temp/
+supabase/sql/15_order_address_reference.sql

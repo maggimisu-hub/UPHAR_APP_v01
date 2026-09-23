@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { Mic, MicOff, Volume2, X, Sparkles, ShoppingBag, Check, AlertCircle, RefreshCw, ExternalLink } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Mic, MicOff, Volume2, X, Sparkles, ShoppingBag, Check, AlertCircle, RefreshCw, ExternalLink, Send, Keyboard } from "lucide-react";
 import { useStore } from "../context/StoreContext";
 import { supabase } from "../lib/supabaseClient";
 import { VoiceResolver } from "../services/voice/voiceResolver";
@@ -41,12 +41,18 @@ const LANG_OPTIONS: { key: AssistantLanguage; label: string }[] = [
 
 export default function VoiceAssistant() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { products, addToCart } = useStore();
   const [isOpen, setIsOpen] = useState(false);
   const [state, setState] = useState<AssistantState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [transcript, setTranscript] = useState("");
   const [language, setLanguage] = useState<AssistantLanguage>("en");
+  const [textInput, setTextInput] = useState("");
+  const [showTextInput, setShowTextInput] = useState(false);
+  const isSpeechSupported = typeof window !== "undefined" && Boolean(
+    (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+  );
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -69,27 +75,34 @@ export default function VoiceAssistant() {
   // Initialize VoiceResolver instance
   const resolverRef = useRef<VoiceResolver | null>(null);
 
+  // Update catalog when products change (PROD-04: does not re-fetch voice training rules)
   useEffect(() => {
     if (!resolverRef.current) {
       resolverRef.current = new VoiceResolver(products);
     } else {
       resolverRef.current.updateCatalog(products);
     }
+  }, [products]);
 
-    // Fetch custom voice training rules from Supabase database
+  // Fetch custom voice training rules once on mount (PROD-04)
+  useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const { data, error } = await supabase
           .from("voice_training_rules")
           .select("id, spoken_term, actual_term, created_at");
-        if (!error && Array.isArray(data)) {
+        if (!cancelled && !error && Array.isArray(data)) {
           setCustomVoiceRules(data);
         }
       } catch {
         // Table might not exist yet before migration — ignore silently
       }
     })();
-  }, [products]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Auto scroll transcript window
   useEffect(() => {
@@ -340,6 +353,11 @@ export default function VoiceAssistant() {
     }
   };
 
+  // FUNC-04: Do not render Voice Assistant on admin routes
+  if (location.pathname.startsWith("/admin")) {
+    return null;
+  }
+
   return (
     <>
       {/* Floating Action Button (FAB) */}
@@ -553,38 +571,97 @@ export default function VoiceAssistant() {
           </div>
 
           {/* Controls Footer */}
-          <div className="flex items-center justify-between gap-3 bg-[#003D3B] p-3 border-t border-white/10">
-            <button
-              type="button"
-              onClick={state === "listening" ? stopListening : startListening}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 font-medium transition-all duration-300 ${
-                state === "listening"
-                  ? "bg-red-500 text-white shadow-lg shadow-red-500/30 animate-pulse"
-                  : "bg-[#B76E79] text-white hover:bg-[#B76E79]/90 shadow-md"
-              }`}
-            >
-              {state === "listening" ? (
-                <>
-                  <MicOff className="h-4 w-4" />
-                  {language === "hi" ? "सुनना बंद करें" : language === "hinglish" ? "Sunna band karo" : "Stop Listening"}
-                </>
-              ) : (
-                <>
-                  <Mic className="h-4 w-4" />
-                  {state === "speaking"
-                    ? language === "hi"
-                      ? "रोकें और बोलें"
+          <div className="flex flex-col gap-2.5 bg-[#003D3B] p-3 border-t border-white/10">
+            {/* Fallback Text Input (FUNC-03): Visible when speech unsupported, on error, or when toggled */}
+            {(!isSpeechSupported || errorMessage || showTextInput) && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const query = textInput.trim();
+                  if (query && state !== "thinking") {
+                    setTextInput("");
+                    processQuery(query);
+                  }
+                }}
+                className="flex items-center gap-2"
+              >
+                <input
+                  type="text"
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  disabled={state === "thinking"}
+                  placeholder={
+                    language === "hi"
+                      ? "यहाँ कमांड लिखें (उदा. Kajal dikhao)..."
                       : language === "hinglish"
-                      ? "Roko aur bolo"
-                      : "Interrupt & Speak"
-                    : language === "hi"
-                    ? "बोलने के लिए दबाएँ"
-                    : language === "hinglish"
-                    ? "Bolne ke liye dabao"
-                    : "Tap to Speak"}
-                </>
+                      ? "Command type karein (e.g. Kajal dikhao)..."
+                      : "Type a command (e.g. Show kajal)..."
+                  }
+                  className="flex-1 rounded-xl bg-white/10 px-3.5 py-2 text-xs text-white placeholder-white/40 border border-white/10 focus:border-[#B76E79] focus:outline-none disabled:opacity-50"
+                  aria-label="Command text input fallback"
+                />
+                <button
+                  type="submit"
+                  disabled={!textInput.trim() || state === "thinking"}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#B76E79] text-white transition hover:bg-[#B76E79]/90 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                  aria-label="Send text command"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              </form>
+            )}
+
+            <div className="flex items-center justify-between gap-2">
+              {isSpeechSupported ? (
+                <button
+                  type="button"
+                  onClick={state === "listening" ? stopListening : startListening}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 font-medium transition-all duration-300 ${
+                    state === "listening"
+                      ? "bg-red-500 text-white shadow-lg shadow-red-500/30 animate-pulse"
+                      : "bg-[#B76E79] text-white hover:bg-[#B76E79]/90 shadow-md"
+                  }`}
+                >
+                  {state === "listening" ? (
+                    <>
+                      <MicOff className="h-4 w-4" />
+                      {language === "hi" ? "सुनना बंद करें" : language === "hinglish" ? "Sunna band karo" : "Stop Listening"}
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="h-4 w-4" />
+                      {state === "speaking"
+                        ? language === "hi"
+                          ? "रोकें और बोलें"
+                          : language === "hinglish"
+                          ? "Roko aur bolo"
+                          : "Interrupt & Speak"
+                        : language === "hi"
+                        ? "बोलने के लिए दबाएँ"
+                        : language === "hinglish"
+                        ? "Bolne ke liye dabao"
+                        : "Tap to Speak"}
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div className="flex-1 text-center text-xs text-white/60 py-1">
+                  {language === "hi" ? "ऊपर कमांड लिखें" : language === "hinglish" ? "Upar command type karein" : "Type commands above"}
+                </div>
               )}
-            </button>
+
+              {isSpeechSupported && (
+                <button
+                  type="button"
+                  onClick={() => setShowTextInput((prev) => !prev)}
+                  className="rounded-xl border border-white/10 bg-white/5 p-2.5 text-white/70 hover:bg-white/10 hover:text-white"
+                  aria-label={showTextInput ? "Hide text input" : "Type instead of speaking"}
+                  title={showTextInput ? "Hide text input" : "Type instead of speaking"}
+                >
+                  <Keyboard className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

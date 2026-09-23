@@ -61,6 +61,7 @@ export type Order = {
   id: string;
   items: CartItem[];
   shipping: CheckoutFormValues;
+  addressId?: string | null;
   subtotal: number;
   shippingCost: number;
   total: number;

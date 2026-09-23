@@ -27,6 +27,7 @@ export default function Checkout() {
   const [errors, setErrors] = useState<Partial<Record<keyof CheckoutFormValues, string>>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
 
   if (authLoading || productsLoading) {
     return (
@@ -40,7 +41,11 @@ export default function Checkout() {
     return <Navigate to="/account" replace />;
   }
 
-  if (cartDetailed.length === 0) {
+  if (createdOrderId) {
+    return <Navigate to={`/order/${createdOrderId}`} replace />;
+  }
+
+  if (cartDetailed.length === 0 && !isSubmitting) {
     return <Navigate to="/cart" replace />;
   }
 
@@ -96,7 +101,7 @@ export default function Checkout() {
         return;
       }
 
-      navigate(`/order/${order.id}`);
+      setCreatedOrderId(order.id);
     } catch (error) {
       console.error("Order placement failed", error);
       setSubmitError(mapCheckoutError(error));

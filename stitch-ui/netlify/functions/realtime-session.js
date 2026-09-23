@@ -1,35 +1,33 @@
-import https from "https";
+import { createClient } from "@supabase/supabase-js";
 
-// Helper to determine allowed origin
-function getAllowedOrigin(originHeader) {
+// Helper to determine allowed origin (SEC-02)
+export function getAllowedOrigin(originHeader) {
   if (!originHeader) return null;
-  const normalized = originHeader.trim().toLowerCase();
+  const normalized = originHeader.trim().toLowerCase().replace(/\/$/, "");
 
-  // Allow localhost for development
-  if (
-    normalized === "http://localhost:3000" ||
-    normalized === "http://127.0.0.1:3000" ||
-    normalized === "http://localhost:5173" ||
-    normalized === "http://127.0.0.1:5173"
-  ) {
-    return originHeader;
-  }
+  // Explicitly trusted production and development origins
+  const trustedOrigins = new Set([
+    "https://uphar-app-v01.netlify.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+  ]);
 
-  // Allow production & deploy preview URLs if configured in Netlify env
-  const allowedEnvs = [
+  // Environment-configured origins (exact match only — no broad wildcards or substrings)
+  const envOrigins = [
     process.env.URL,
     process.env.DEPLOY_PRIME_URL,
     process.env.APP_URL,
-  ].filter(Boolean).map((u) => u.trim().toLowerCase().replace(/\/$/, ""));
+  ]
+    .filter(Boolean)
+    .map((u) => u.trim().toLowerCase().replace(/\/$/, ""));
 
-  for (const allowed of allowedEnvs) {
-    if (normalized === allowed || normalized.endsWith(".netlify.app")) {
-      return originHeader;
-    }
+  for (const envOrigin of envOrigins) {
+    trustedOrigins.add(envOrigin);
   }
 
-  // If deployed on custom domain or Netlify subdomain
-  if (normalized.endsWith(".netlify.app") || normalized.includes("uphar")) {
+  if (trustedOrigins.has(normalized)) {
     return originHeader;
   }
 
@@ -81,7 +79,7 @@ export async function handler(event, context) {
     };
   }
 
-  // Enforce Endpoint Authentication / Authorization
+  // Enforce Endpoint Authentication / Authorization (SEC-03)
   const authHeader = event.headers.authorization || event.headers.Authorization || "";
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return {
@@ -107,133 +105,55 @@ export async function handler(event, context) {
     };
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  // Cryptographic token verification via Supabase Auth (SEC-03)
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
-  if (!apiKey || apiKey === "your_openai_api_key") {
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        status: "fallback",
-        message: "OPENAI_API_KEY environment variable is missing or placeholder.",
-      }),
-    };
-  }
-
-  // Operational log without sensitive key fragments or tokens
-  console.log("[realtime-session] Processing authenticated session request");
-
-  try {
-    const postData = JSON.stringify({
-      session: {
-        model: "gpt-realtime",
-        type: "realtime",
-        instructions:
-          "You are Uphar's shopping assistant. Helpful, concise, and friendly. Help customers find products, check prices, discounts, stock availability, and add items to their cart.",
-        audio: {
-          input: {
-            format: { type: "audio/pcm", rate: 24000 },
-          },
-          output: {
-            voice: "alloy",
-            format: { type: "audio/pcm", rate: 24000 },
-          },
-        },
-        tools: [
-          {
-            type: "function",
-            name: "search_products",
-            description: "Search active storefront products by name, category, or keyword.",
-            parameters: {
-              type: "object",
-              properties: { query: { type: "string", description: "Product search query" } },
-              required: ["query"],
-            },
-          },
-          {
-            type: "function",
-            name: "get_product_details",
-            description: "Get pricing, stock, discount, and return policy details for a product.",
-            parameters: {
-              type: "object",
-              properties: { product_name: { type: "string", description: "Product name to look up" } },
-              required: ["product_name"],
-            },
-          },
-          {
-            type: "function",
-            name: "add_to_cart",
-            description: "Add a product to the customer's cart after explicit confirmation.",
-            parameters: {
-              type: "object",
-              properties: {
-                product_name: { type: "string", description: "Product name to add" },
-                quantity: { type: "integer", description: "Number of items to add", default: 1 },
-              },
-              required: ["product_name"],
-            },
-          },
-        ],
-      },
-    });
-
-    const options = {
-      hostname: "api.openai.com",
-      port: 443,
-      path: "/v1/realtime/client_secrets",
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey.trim()}`,
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(postData),
-      },
-    };
-
-    const response = await new Promise((resolve, reject) => {
-      const req = https.request(options, (res) => {
-        let data = "";
-        res.on("data", (chunk) => (data += chunk));
-        res.on("end", () => {
-          resolve({ statusCode: res.statusCode, body: data });
-        });
+  if (supabaseUrl && supabaseAnonKey) {
+    try {
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
       });
-      req.on("error", (e) => reject(e));
-      req.write(postData);
-      req.end();
-    });
-
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      const parsed = JSON.parse(response.body);
+      const { data: userData, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !userData?.user) {
+        return {
+          statusCode: 401,
+          headers,
+          body: JSON.stringify({
+            status: "error",
+            message: "Unauthorized: Invalid or expired authentication token.",
+          }),
+        };
+      }
+    } catch {
       return {
-        statusCode: 200,
+        statusCode: 401,
         headers,
         body: JSON.stringify({
-          status: "success",
-          client_secret: parsed.client_secret?.value || parsed.client_secret,
-          expires_at: parsed.expires_at,
-          model: parsed.model,
-        }),
-      };
-    } else {
-      console.warn(`[realtime-session] OpenAI API returned status ${response.statusCode}`);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          status: "fallback",
-          message: `OpenAI API returned status ${response.statusCode}`,
+          status: "error",
+          message: "Unauthorized: Authentication verification failed.",
         }),
       };
     }
-  } catch (error) {
-    console.error("[realtime-session] Exception creating session");
+  } else {
     return {
-      statusCode: 200,
+      statusCode: 500,
       headers,
       body: JSON.stringify({
-        status: "fallback",
-        message: "Failed to create realtime session",
+        status: "error",
+        message: "Server configuration error: Authentication service unavailable.",
       }),
     };
   }
+
+  // PROD-02: Deactivate OpenAI Realtime path. Storefront Voice Assistant operates on local deterministic engine.
+  // The unverified OpenAI realtime model identifier is not used.
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify({
+      status: "fallback",
+      message: "OpenAI Realtime session endpoint is deactivated. Storefront Voice Assistant operates on the local deterministic engine.",
+    }),
+  };
 }

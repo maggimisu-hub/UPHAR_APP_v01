@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Mic, Plus, Trash2, Search, AlertTriangle, CheckCircle, RefreshCw, Copy, Check } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { setCustomVoiceRules, type VoiceTrainingRule } from "../../services/voiceAssistantService";
@@ -15,6 +15,7 @@ export default function VoiceTraining() {
   const [actualTerm, setActualTerm] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const lastSubmitRef = useRef<number>(0);
 
   const sqlMigrationCode = `-- Copy and run this in Supabase SQL Editor:
 create table if not exists public.voice_training_rules (
@@ -27,10 +28,25 @@ create table if not exists public.voice_training_rules (
 alter table public.voice_training_rules enable row level security;
 
 create policy "Allow public read-only access to voice training rules"
-on public.voice_training_rules for select using (true);
+on public.voice_training_rules for select
+using (true);
 
 create policy "Allow authenticated admin full access to voice training rules"
-on public.voice_training_rules for all using (true) with check (true);`;
+on public.voice_training_rules for all
+using (
+  exists (
+    select 1 from public.users
+    where users.id = auth.uid()
+    and users.role = 'admin'
+  )
+)
+with check (
+  exists (
+    select 1 from public.users
+    where users.id = auth.uid()
+    and users.role = 'admin'
+  )
+);`;
 
   const fetchRules = async () => {
     setLoading(true);
@@ -68,6 +84,19 @@ on public.voice_training_rules for all using (true) with check (true);`;
     e.preventDefault();
     if (!spokenTerm.trim() || !actualTerm.trim()) {
       setStatusMessage({ type: "error", text: "Please provide both spoken term and target catalog term." });
+      return;
+    }
+
+    // PROD-03: Rate limiting / submit locking guard (2000ms debounce)
+    const now = Date.now();
+    if (submitting || now - lastSubmitRef.current < 2000) {
+      return;
+    }
+    lastSubmitRef.current = now;
+
+    // Short-circuit if database table does not exist in production
+    if (!tableExists) {
+      setStatusMessage({ type: "error", text: "Database table not found. Voice training rule creation is unavailable." });
       return;
     }
 

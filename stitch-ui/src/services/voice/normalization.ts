@@ -51,23 +51,6 @@ const DEVANAGARI_TRANSLITERATION_MAP: Record<string, string> = {
   "बारे में": "baare mein",
 };
 
-const FILLER_WORDS = new Set([
-  "please",
-  "bhai",
-  "bhaiya",
-  "zara",
-  "thoda",
-  "mujhe",
-  "humko",
-  "kripya",
-  "can you",
-  "could you",
-  "tell me",
-  "batao",
-  "bataiye",
-  "bolo",
-  "boliye",
-]);
 
 /**
  * Checks if string contains Devanagari Unicode characters (0x0900 - 0x097F).
@@ -151,13 +134,4 @@ export function normalizeQuery(text: string): string {
   cleaned = cleaned.replace(/\s+/g, " ").trim();
 
   return cleaned;
-}
-
-/**
- * Removes conversational filler words to isolate semantic tokens.
- */
-export function removeFillers(normalizedText: string): string {
-  const tokens = normalizedText.split(" ");
-  const filtered = tokens.filter((t) => !FILLER_WORDS.has(t));
-  return filtered.join(" ").trim();
 }

@@ -9,6 +9,7 @@ export type VoiceIntentType =
   | "OPEN_PRODUCT"         // Direct route navigation: "Isko open karo", "VLCC Kajal ka page kholo"
   | "SELECT_PRODUCT"       // Candidate selection: "First one", "VLCC wala", "Second"
   | "MORE_RESULTS"         // Pagination over candidate pool: "Aur dikhao", "Show more", "Next"
+  | "NEW_ARRIVALS"         // New arrivals discovery: "Show me new arrivals", "What's new", "Naye products dikhao"
   | "ADD_TO_CART"          // Cart commitment: "Add to cart", "Cart mein daal do"
   | "CONFIRM"              // Two-step confirmation affirmative: "Yes", "Haan", "Confirm"
   | "CANCEL"               // Two-step confirmation negative: "No", "Nahi", "Cancel"

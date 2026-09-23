@@ -24,6 +24,7 @@ import {
   CONFIRM_TRIGGERS,
   CANCEL_TRIGGERS,
   PAGINATION_TRIGGERS,
+  NEW_ARRIVALS_TRIGGERS,
 } from "./lexicon";
 
 function matchesAny(text: string, triggers: string[]): boolean {
@@ -171,6 +172,11 @@ export function classifyIntent(
   // 4. More results / pagination
   if (matchesAny(normQuery, PAGINATION_TRIGGERS)) {
     return { intent: "MORE_RESULTS", confidence: "HIGH" };
+  }
+
+  // 4b. New arrivals discovery ("Show me new arrivals", "What's new", "Naye products dikhao")
+  if (matchesAny(normQuery, NEW_ARRIVALS_TRIGGERS) && !entities.category && !entities.brand) {
+    return { intent: "NEW_ARRIVALS", confidence: "HIGH" };
   }
 
   // 5. Price inquiry

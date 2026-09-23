@@ -5,6 +5,7 @@ import type { CheckoutFormValues, Order } from "../types";
 type OrderRow = {
   id: string;
   user_id: string;
+  address_id?: string | null;
   total_amount: number;
   status: string;
   payment_status: string;
@@ -91,12 +92,7 @@ export async function getCustomerOrders(userId: string): Promise<Order[]> {
       .from("orders")
       .select(
         `
-          id,
-          user_id,
-          total_amount,
-          status,
-          payment_status,
-          created_at,
+          *,
           order_items (
             product_id,
             quantity,
@@ -123,11 +119,10 @@ export async function getCustomerOrders(userId: string): Promise<Order[]> {
   const addresses = (addressesRes.data as AddressRow[] | null) ?? [];
 
   return rows.map((row) => {
-    const orderTime = new Date(row.created_at).getTime();
-    const matchedAddress =
-      addresses.find(
-        (a) => new Date(a.created_at).getTime() <= orderTime + 60000,
-      ) ?? addresses[0];
+    // Relational reference: look up exact address by order.address_id
+    const matchedAddress = row.address_id
+      ? addresses.find((a) => a.id === row.address_id) ?? null
+      : null;
 
     const contactDetails: CheckoutFormValues = matchedAddress
       ? {
@@ -147,6 +142,7 @@ export async function getCustomerOrders(userId: string): Promise<Order[]> {
 
     return {
       id: row.id,
+      addressId: row.address_id ?? null,
       items: (row.order_items ?? []).map((item) => ({
         productId: item.product_id,
         size: Array.isArray(item.variant)
